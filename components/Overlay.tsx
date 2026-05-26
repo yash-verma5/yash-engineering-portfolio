@@ -1,9 +1,18 @@
-import { useState, useRef } from "react";
-import { motion, MotionValue, useTransform, useVelocity, useSpring } from "framer-motion";
+"use client";
+
+import { useRef, useState } from "react";
+import { motion, MotionValue, useSpring, useTransform, useVelocity } from "framer-motion";
+import { profile } from "@/lib/content";
+import { useKonamiMode } from "@/components/KonamiProvider";
 
 type OverlayProps = {
   progress: MotionValue<number>;
   reduceMotion?: boolean;
+};
+
+type Cta = {
+  label: string;
+  href: string;
 };
 
 function CopyBlock({
@@ -14,6 +23,8 @@ function CopyBlock({
   eyebrow,
   title,
   body,
+  note,
+  ctas,
   reduceMotion = false
 }: {
   progress: MotionValue<number>;
@@ -23,107 +34,47 @@ function CopyBlock({
   eyebrow: string;
   title: string;
   body: string;
+  note?: string;
+  ctas?: Cta[];
   reduceMotion?: boolean;
 }) {
-  // Click-glitch Easter Egg state
   const [clickCount, setClickCount] = useState(0);
   const [isGlitching, setIsGlitching] = useState(false);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleTitleClick = () => {
-    // Only enable glitch for the introductory Hero section
-    if (eyebrow !== "Portfolio 2026") return;
+    if (title !== profile.name) return;
 
     setClickCount((prev) => prev + 1);
 
     if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
-    clickTimeoutRef.current = setTimeout(() => {
-      setClickCount(0);
-    }, 1000);
+    clickTimeoutRef.current = setTimeout(() => setClickCount(0), 1000);
 
     if (clickCount + 1 >= 5) {
       setIsGlitching(true);
       setClickCount(0);
-
-      // Play audio glitch synth
-      try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(90, audioCtx.currentTime);
-        osc.frequency.setValueAtTime(600, audioCtx.currentTime + 0.12);
-        osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.24);
-        
-        gainNode.gain.setValueAtTime(0.06, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.02, audioCtx.currentTime + 0.15);
-        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4);
-        
-        osc.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.45);
-      } catch (_) {}
-
-      setTimeout(() => {
-        setIsGlitching(false);
-      }, 700);
+      setTimeout(() => setIsGlitching(false), 700);
     }
   };
 
-  // Interpolated progress-based animations
   const opacity = useTransform(progress, range, [0, 1, 1, 0]);
   const y = useTransform(progress, range, [60, 0, 0, -60]);
   const x = useTransform(progress, [range[0], range[3]], xRange);
-
-  // Dynamic Variable Font-Weight: Gets bold in focus, light on entry/exit
   const fontWeight = useTransform(
     progress,
     [range[0], (range[1] + range[2]) / 2, range[3]],
-    [300, 700, 300]
+    [400, 700, 400]
   );
-
-  // Progressive entrance spatial blur (gives theatrical entry)
-  const spatialBlur = useTransform(
-    progress,
-    [range[0], range[1], range[2], range[3]],
-    [10, 0, 0, 10]
-  );
-
-  // --- Scroll Velocity Physics ---
+  const spatialBlur = useTransform(progress, [range[0], range[1], range[2], range[3]], [8, 0, 0, 8]);
   const scrollVelocity = useVelocity(progress);
-  
-  // Smooth the raw velocity values using spring physics
-  const velocitySpring = useSpring(scrollVelocity, {
-    stiffness: 180,
-    damping: 30
+  const velocitySpring = useSpring(scrollVelocity, { stiffness: 180, damping: 30 });
+  const skewY = useTransform(velocitySpring, [-1, 0, 1], [-6, 0, 6]);
+  const scaleY = useTransform(velocitySpring, [-1, 0, 1], [1.06, 1, 1.06]);
+  const velocityBlurVal = useTransform(velocitySpring, [-1.2, 0, 1.2], [4, 0, 4]);
+  const filterVal = useTransform([spatialBlur, velocityBlurVal], ([spatial, velocity]) => {
+    if (reduceMotion) return "none";
+    return `blur(${Number(spatial) + Number(velocity)}px)`;
   });
-
-  // Skew, scale, blur, and chromatic aberration reactive to velocity
-  const skewY = useTransform(velocitySpring, [-1, 0, 1], [-10, 0, 10]);
-  const scaleY = useTransform(velocitySpring, [-1, 0, 1], [1.12, 1, 1.12]);
-  
-  const velocityBlurVal = useTransform(velocitySpring, [-1.2, 0, 1.2], [6, 0, 6]);
-  const textShadowVal = useTransform(
-    velocitySpring,
-    [-1.2, 0, 1.2],
-    [
-      "-4px 0 0 rgba(255, 0, 127, 0.75), 4px 0 0 rgba(0, 255, 255, 0.75)",
-      "0px 0px 0px rgba(0,0,0,0)",
-      "-4px 0 0 rgba(255, 0, 127, 0.75), 4px 0 0 rgba(0, 255, 255, 0.75)"
-    ]
-  );
-
-  // Combine Spatial entrance blur and scroll Velocity blur
-  const filterVal = useTransform(
-    [spatialBlur, velocityBlurVal],
-    ([spatial, velocity]) => {
-      if (reduceMotion) return "none";
-      return `blur(${Number(spatial) + Number(velocity)}px)`;
-    }
-  );
 
   const alignment =
     align === "center"
@@ -141,84 +92,159 @@ function CopyBlock({
         scaleY: reduceMotion ? 1 : scaleY,
         skewY: reduceMotion ? 0 : skewY,
         filter: filterVal,
-        textShadow: reduceMotion ? "none" : textShadowVal,
         fontWeight
       }}
-      className={`absolute inset-x-5 top-1/2 flex max-w-4xl -translate-y-1/2 flex-col ${alignment} md:inset-x-12`}
+      className={`absolute inset-x-5 top-1/2 flex max-w-5xl -translate-y-1/2 flex-col ${alignment} md:inset-x-12`}
     >
       <span className="mb-6 rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.28em] text-sky-200/90 backdrop-blur-md">
         {eyebrow}
       </span>
-      <h2 
+      <h1
         onClick={handleTitleClick}
-        className={`max-w-5xl text-balance text-4xl font-light leading-[0.9] tracking-[-0.04em] text-white md:text-8xl select-none ${
-          eyebrow === "Portfolio 2026" ? "cursor-pointer hover:text-sky-300 transition duration-300 active:scale-[0.99]" : ""
+        className={`konami-rgb-text max-w-5xl text-balance text-5xl font-semibold leading-[0.9] tracking-[-0.05em] text-white md:text-8xl ${
+          title === profile.name ? "cursor-pointer select-none" : ""
         } ${isGlitching ? "animate-glitch-active" : ""}`}
       >
         {title}
-      </h2>
-      <p className="mt-8 max-w-xl text-sm leading-7 text-white/55 md:text-lg">
-        {body}
-      </p>
+      </h1>
+      <p className="mt-7 max-w-2xl text-base leading-7 text-white/70 md:text-xl">{body}</p>
+      {note && <p className="mt-3 max-w-xl text-sm leading-6 text-white/48 md:text-base">{note}</p>}
+      {ctas && (
+        <div className="pointer-events-auto mt-9 flex flex-wrap justify-center gap-3">
+          {ctas.map((cta, index) => (
+            <a
+              key={cta.href}
+              href={cta.href}
+              target={cta.href.startsWith("http") ? "_blank" : undefined}
+              rel={cta.href.startsWith("http") ? "noopener noreferrer" : undefined}
+              className={`interactive rounded-full px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                index === 0
+                  ? "bg-white text-ink hover:bg-sky-200"
+                  : "border border-white/14 bg-white/[0.055] text-white/76 backdrop-blur-md hover:border-sky-200/40 hover:bg-sky-200/10 hover:text-white"
+              }`}
+            >
+              {cta.label}
+            </a>
+          ))}
+        </div>
+      )}
     </motion.section>
   );
 }
 
-
 export default function Overlay({ progress, reduceMotion = false }: OverlayProps) {
+  const { active: konamiActive } = useKonamiMode();
+  const blocks = konamiActive
+    ? [
+        {
+          range: [0, 0.03, 0.17, 0.26] as [number, number, number, number],
+          xRange: [0, -32] as [number, number],
+          align: "center" as const,
+          eyebrow: "Signal Detected",
+          title: "Reality Override",
+          body: "A hidden frame layer takes over the same scroll engine, keeping the canvas pinned while the signal scrubs through an alternate sequence.",
+          note: "Konami mode is temporary. The system will restore itself cleanly.",
+          ctas: undefined
+        },
+        {
+          range: [0.23, 0.3, 0.43, 0.52] as [number, number, number, number],
+          xRange: [-48, 12] as [number, number],
+          align: "left" as const,
+          eyebrow: "Alternate Layer",
+          title: "Scroll stays locked.",
+          body: "The same production canvas pipeline now reads a second preloaded frame cache without changing layout or scroll physics.",
+          note: undefined,
+          ctas: undefined
+        },
+        {
+          range: [0.52, 0.6, 0.74, 0.84] as [number, number, number, number],
+          xRange: [48, -12] as [number, number],
+          align: "right" as const,
+          eyebrow: "Mode Shift",
+          title: "Signal over structure.",
+          body: "Cyan edges, ember highlights, scanlines, and the alternate sequence sit above the original portfolio system without breaking it.",
+          note: undefined,
+          ctas: undefined
+        },
+        {
+          range: [0.78, 0.86, 0.94, 1] as [number, number, number, number],
+          xRange: [0, 0] as [number, number],
+          align: "center" as const,
+          eyebrow: "Restore Pending",
+          title: "The layer will collapse.",
+          body: "When the timer ends, the theme and canvas return to the default engineering portfolio state.",
+          note: undefined,
+          ctas: undefined
+        }
+      ]
+    : [
+        {
+          range: [0, 0.03, 0.17, 0.26] as [number, number, number, number],
+          xRange: [0, -32] as [number, number],
+          align: "center" as const,
+          eyebrow: profile.title,
+          title: profile.name,
+          body: profile.headline,
+          note: profile.subtext,
+          ctas: [
+            { label: "View Work", href: "#work" },
+            { label: "GitHub", href: profile.links.github },
+            { label: "LinkedIn", href: profile.links.linkedin },
+            { label: "Contact", href: `mailto:${profile.email}` }
+          ]
+        },
+        {
+          range: [0.23, 0.3, 0.43, 0.52] as [number, number, number, number],
+          xRange: [-48, 12] as [number, number],
+          align: "left" as const,
+          eyebrow: "Backend Focus",
+          title: "Java. Integrations. Search.",
+          body: "Backend services, data pipelines, and Solr-backed search workflows built for retail systems that have to keep moving.",
+          note: undefined,
+          ctas: undefined
+        },
+        {
+          range: [0.52, 0.6, 0.74, 0.84] as [number, number, number, number],
+          xRange: [48, -12] as [number, number],
+          align: "right" as const,
+          eyebrow: "Production Systems",
+          title: "Building systems that move real orders.",
+          body: "OMS workflows, NiFi operations, fulfillment logic, and integration debugging with a production-first mindset.",
+          note: undefined,
+          ctas: undefined
+        },
+        {
+          range: [0.78, 0.86, 0.94, 1] as [number, number, number, number],
+          xRange: [0, 0] as [number, number],
+          align: "center" as const,
+          eyebrow: "Debugging Depth",
+          title: "From pipelines to production fixes.",
+          body: "Tracing cursor behavior, timestamps, shipment states, search documents, and API boundaries until the system explains itself.",
+          note: undefined,
+          ctas: undefined
+        }
+      ];
+
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
       <div className="sticky top-0 h-screen overflow-hidden">
-        {/* Soft atmospheric gradient */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_10%,rgba(1,8,19,0.22)_50%,rgba(1,8,19,0.75)_100%)]" />
 
-        {/* Copy Block 1: Intro */}
-        <CopyBlock
-          progress={progress}
-          range={[0, 0.03, 0.16, 0.25]}
-          xRange={[0, -32]}
-          align="center"
-          eyebrow="Portfolio 2026"
-          title="Kinetic Systems & Creative Code."
-          body="I craft premium digital interfaces where physics, cinematic motion, and detailed engineering land in the same viewport."
-          reduceMotion={reduceMotion}
-        />
-
-        {/* Copy Block 2: Interaction */}
-        <CopyBlock
-          progress={progress}
-          range={[0.22, 0.29, 0.43, 0.52]}
-          xRange={[-48, 12]}
-          align="left"
-          eyebrow="01. Scroll Engine"
-          title="Making code feel physically alive."
-          body="From micro-interaction feedback to scroll scrubbing sequences, every transition is designed to feel precise, fluid, and weighted."
-          reduceMotion={reduceMotion}
-        />
-
-        {/* Copy Block 3: Engineering */}
-        <CopyBlock
-          progress={progress}
-          range={[0.52, 0.6, 0.74, 0.83]}
-          xRange={[48, -12]}
-          align="right"
-          eyebrow="02. Core Architecture"
-          title="Resilient systems. No compromises."
-          body="I bridge high-end conceptual design with modular front-end architecture that runs flawlessly across real browsers."
-          reduceMotion={reduceMotion}
-        />
-
-        {/* Continuous scroll invite indicator */}
-        <motion.div
-          style={{
-            opacity: useTransform(progress, [0, 0.03, 0.82, 0.92], [0.6, 0.2, 0, 1]),
-            y: useTransform(progress, [0.82, 1], [40, 0])
-          }}
-          className="absolute inset-x-6 bottom-10 mx-auto flex max-w-7xl items-end justify-between gap-6 text-[10px] font-semibold uppercase tracking-[0.28em] text-white/40 md:inset-x-12"
-        >
-          <span>Selected Case Studies</span>
-          <span className="hidden md:block">Keep scrolling to explore</span>
-        </motion.div>
+        {blocks.map((block) => (
+          <CopyBlock
+            key={`${block.eyebrow}-${block.title}`}
+            progress={progress}
+            range={block.range}
+            xRange={block.xRange}
+            align={block.align}
+            eyebrow={block.eyebrow}
+            title={block.title}
+            body={block.body}
+            note={block.note}
+            ctas={block.ctas}
+            reduceMotion={reduceMotion}
+          />
+        ))}
       </div>
     </div>
   );

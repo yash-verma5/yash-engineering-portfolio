@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useKonamiMode } from "@/components/KonamiProvider";
 
 const KONAMI_CODE = [
   "arrowup",
@@ -16,57 +17,38 @@ const KONAMI_CODE = [
   "a"
 ];
 
+function playActivationTone() {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(82, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(420, audioCtx.currentTime + 0.9);
+    gain.gain.setValueAtTime(0.045, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 1.05);
+  } catch {
+    // Browser audio policy may block this; the visual mode still works.
+  }
+}
+
 export default function EasterEggController() {
-  const [active, setActive] = useState(false);
-  const [countdown, setCountdown] = useState(30);
+  const { active, countdown, activate, deactivate } = useKonamiMode();
   const [keys, setKeys] = useState<string[]>([]);
-  const countdownInterval = useRef<NodeJS.Timeout | null>(null);
+  const [pulse, setPulse] = useState(false);
 
-  const deactivateCyberpunkMode = useCallback(() => {
-    setActive(false);
-    document.documentElement.classList.remove("cyberpunk-mode");
-    if (countdownInterval.current) {
-      clearInterval(countdownInterval.current);
-      countdownInterval.current = null;
-    }
-  }, []);
-
-  const triggerCyberpunkMode = useCallback(() => {
-    if (active) return;
-    setActive(true);
-    setCountdown(30);
-    document.documentElement.classList.add("cyberpunk-mode");
-
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(110, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 1.2);
-
-      gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1.2);
-
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 1.3);
-    } catch {
-      // Audio is optional and can be blocked by browser policy.
-    }
-
-    countdownInterval.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          deactivateCyberpunkMode();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, [active, deactivateCyberpunkMode]);
+  const triggerKonamiMode = useCallback(() => {
+    activate();
+    setPulse(true);
+    playActivationTone();
+    window.setTimeout(() => setPulse(false), 850);
+  }, [activate]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -77,7 +59,7 @@ export default function EasterEggController() {
         const matches = nextKeys.every((val, index) => val === KONAMI_CODE[index]);
 
         if (matches) {
-          triggerCyberpunkMode();
+          triggerKonamiMode();
           return [];
         }
 
@@ -87,57 +69,62 @@ export default function EasterEggController() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [triggerCyberpunkMode]);
-
-  useEffect(() => {
-    return () => {
-      if (countdownInterval.current) clearInterval(countdownInterval.current);
-      document.documentElement.classList.remove("cyberpunk-mode");
-    };
-  }, []);
+  }, [triggerKonamiMode]);
 
   return (
-    <AnimatePresence>
-      {active && (
-        <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 50, scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 350, damping: 25 }}
-          className="fixed bottom-6 right-6 z-[9999] max-w-sm rounded-xl border border-rose-500/30 bg-black/90 p-5 font-mono shadow-2xl backdrop-blur-md"
-        >
-          <div className="flex items-center gap-4">
-            <span className="relative flex h-3 w-3">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-rose-500" />
-            </span>
-            <div className="flex-1">
-              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-rose-400">
-                SYSTEM OVERRIDE ACTIVE
-              </h4>
-              <p className="mt-1 text-[10px] uppercase tracking-wider text-cyan-400">
-                CYBERPUNK NEON GLITCH V1.0.0
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-2xl font-black text-rose-500">
+    <>
+      <AnimatePresence>
+        {pulse && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0.7, 0] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.85, ease: "easeOut" }}
+            className="pointer-events-none fixed inset-0 z-[9997] bg-[radial-gradient(circle_at_center,rgba(103,232,249,0.18),rgba(251,146,60,0.08)_34%,transparent_68%)]"
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {active && (
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 340, damping: 28 }}
+            className="fixed bottom-6 right-6 z-[9999] max-w-sm rounded-lg border border-cyan-200/20 bg-[#03070d]/88 p-5 font-mono shadow-2xl shadow-cyan-950/30 backdrop-blur-xl"
+          >
+            <div className="flex items-center gap-4">
+              <span className="relative flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-200 opacity-60" />
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-orange-300" />
+              </span>
+              <div className="flex-1">
+                <h4 className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-100">
+                  Alternate Layer Active
+                </h4>
+                <p className="mt-1 text-[10px] uppercase tracking-wider text-orange-200/70">
+                  Konami sequence linked to scroll
+                </p>
+              </div>
+              <span className="text-2xl font-black text-orange-200">
                 {String(countdown).padStart(2, "0")}s
               </span>
             </div>
-          </div>
 
-          <div className="mt-4 flex items-center justify-between border-t border-rose-500/10 pt-3 text-[9px] uppercase tracking-widest text-white/50">
-            <span>KONAMI UNLOCKED</span>
-            <button
-              type="button"
-              onClick={deactivateCyberpunkMode}
-              className="cursor-pointer text-rose-400 underline transition-colors hover:text-white"
-            >
-              RESTORE ENGINE
-            </button>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            <div className="mt-4 flex items-center justify-between border-t border-cyan-200/10 pt-3 text-[9px] uppercase tracking-widest text-white/45">
+              <span>Reality Override</span>
+              <button
+                type="button"
+                onClick={deactivate}
+                className="cursor-pointer text-cyan-100 underline underline-offset-4 transition-colors hover:text-white"
+              >
+                Restore
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
