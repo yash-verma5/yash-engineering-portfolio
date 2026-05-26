@@ -33,8 +33,8 @@ export const navItems = [
 ];
 
 export const about = {
-  eyebrow: "About",
-  title: "Backend systems, integrations, and production clarity.",
+  eyebrow: "Information",
+  title: "A backend engineer moving through systems, signals, and production reality.",
   body:
     "I am an Enterprise Software Engineer at HotWax Systems with experience building and debugging backend systems, retail integrations, data pipelines, search services, and order management workflows. I work primarily with Java, Spring Boot, Apache NiFi, Apache Solr, Moqui/OFBiz, REST APIs, SQL, and frontend integrations where needed. My work spans production support, migration projects, feature development, debugging, and performance-oriented system design.",
   highlights: [
@@ -42,6 +42,40 @@ export const about = {
     "Apache NiFi production flow ownership",
     "Solr and SolrCloud search reliability",
     "Backend debugging across distributed systems"
+  ],
+  beats: [
+    {
+      label: "01 / Identity",
+      title: "Enterprise software engineer, grounded in backend reality.",
+      body:
+        "I work where business workflows meet production systems: orders, integrations, search indexes, data movement, and the edge cases that show up only when real users are involved.",
+      proof: "HotWax Systems · Indore",
+      tags: ["Java", "Spring Boot", "OMS", "Production Support"]
+    },
+    {
+      label: "02 / Build",
+      title: "I build the paths that keep retail systems moving.",
+      body:
+        "My work spans backend services, Apache NiFi flows, REST integrations, fulfillment logic, and data transformations that connect external platforms with core order-management workflows.",
+      proof: "Pipelines · APIs · Fulfillment",
+      tags: ["Apache NiFi", "REST APIs", "SQL", "Moqui / OFBiz"]
+    },
+    {
+      label: "03 / Debug",
+      title: "I like systems that explain themselves after enough tracing.",
+      body:
+        "I trace timestamps, poll cursors, shipment states, Solr documents, and reconciliation queries until the failure mode becomes visible enough to fix cleanly.",
+      proof: "Root cause over guesswork",
+      tags: ["SolrCloud", "MySQL", "Grafana", "Reconciliation"]
+    },
+    {
+      label: "04 / Stack",
+      title: "Search, integrations, and backend feature delivery are my core lane.",
+      body:
+        "The stack I reach for most often is Java, Spring Boot, Apache NiFi, Apache Solr, SQL, Git, and pragmatic frontend work when the workflow needs it.",
+      proof: "Backend first, cross-stack when useful",
+      tags: ["Apache Solr", "Docker", "Kubernetes", "Vue / React"]
+    }
   ]
 };
 
