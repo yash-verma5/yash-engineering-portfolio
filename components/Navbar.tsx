@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useKonamiMode } from "@/components/KonamiProvider";
 import { navItems, profile } from "@/lib/content";
 
 export default function Navbar() {
+  const { activate } = useKonamiMode();
   const [activeSection, setActiveSection] = useState("intro");
   const [scrolled, setScrolled] = useState(false);
+  const secretTapCountRef = useRef(0);
+  const secretTapTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,6 +42,32 @@ export default function Navbar() {
     if (section) section.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleBrandTap = () => {
+    scrollTo("intro");
+    secretTapCountRef.current += 1;
+
+    if (secretTapTimerRef.current) {
+      window.clearTimeout(secretTapTimerRef.current);
+    }
+
+    secretTapTimerRef.current = window.setTimeout(() => {
+      secretTapCountRef.current = 0;
+    }, 1400);
+
+    if (secretTapCountRef.current >= 5) {
+      secretTapCountRef.current = 0;
+      activate();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (secretTapTimerRef.current) {
+        window.clearTimeout(secretTapTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <motion.header
       initial={{ y: -100, opacity: 0 }}
@@ -53,7 +83,7 @@ export default function Navbar() {
         <button
           type="button"
           className="interactive group flex cursor-pointer items-center gap-3"
-          onClick={() => scrollTo("intro")}
+          onClick={handleBrandTap}
         >
           <span className="relative flex h-3 w-3">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 transition-colors group-hover:bg-sky-400" />
