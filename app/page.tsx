@@ -4,6 +4,13 @@ import EasterEggController from "@/components/EasterEggController";
 import KineticMarquee from "@/components/KineticMarquee";
 import Navbar from "@/components/Navbar";
 import Projects from "@/components/Projects";
+import {
+  AboutSection,
+  EducationSection,
+  ExperienceSection,
+  SkillsSection,
+  WritingSection
+} from "@/components/ProfileSections";
 import ScrollyCanvas from "@/components/ScrollyCanvas";
 
 export default function Home() {
@@ -15,8 +22,13 @@ export default function Home() {
       <div className="grain-overlay" />
       <div className="vignette-overlay" />
       <ScrollyCanvas />
-      <KineticMarquee text="Creative Developer / Scrollytelling / Product Interfaces" />
+      <KineticMarquee text="Java / Spring Boot / Apache NiFi / Apache Solr / OMS" />
+      <AboutSection />
+      <SkillsSection />
+      <ExperienceSection />
       <Projects />
+      <WritingSection />
+      <EducationSection />
       <Contact />
     </main>
   );

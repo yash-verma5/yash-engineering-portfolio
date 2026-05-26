@@ -2,14 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-
-const navItems = [
-  { id: "intro", label: "01. Intro" },
-  { id: "focus", label: "02. Focus" },
-  { id: "system", label: "03. System" },
-  { id: "work", label: "04. Work" },
-  { id: "contact", label: "05. Contact" }
-];
+import { navItems, profile } from "@/lib/content";
 
 export default function Navbar() {
   const [activeSection, setActiveSection] = useState("intro");
@@ -56,7 +49,7 @@ export default function Navbar() {
           : "bg-transparent py-8"
       }`}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 md:px-12">
+      <div className="mx-auto flex max-w-[92rem] items-center justify-between px-5 md:px-8">
         <button
           type="button"
           className="interactive group flex cursor-pointer items-center gap-3"
@@ -66,12 +59,12 @@ export default function Navbar() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 transition-colors group-hover:bg-sky-400" />
             <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 transition-colors group-hover:bg-sky-500" />
           </span>
-          <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white/90 transition duration-300 group-hover:text-white">
-            YASH VERMA
+          <span className="text-xs font-semibold uppercase tracking-[0.26em] text-white/90 transition duration-300 group-hover:text-white">
+            {profile.name}
           </span>
         </button>
 
-        <nav className="hidden items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.03] p-1.5 backdrop-blur-md lg:flex">
+        <nav className="hidden items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.03] p-1.5 backdrop-blur-md xl:flex">
           {navItems.map((item) => {
             const isActive = activeSection === item.id;
             return (
@@ -79,7 +72,7 @@ export default function Navbar() {
                 key={item.id}
                 type="button"
                 onClick={() => scrollTo(item.id)}
-                className={`relative rounded-full px-4 py-2 text-[10px] font-medium uppercase tracking-[0.16em] transition-all duration-300 xl:px-5 xl:text-xs ${
+                className={`relative rounded-full px-3 py-2 text-[10px] font-medium uppercase tracking-[0.13em] transition-all duration-300 ${
                   isActive ? "text-ink" : "text-white/60 hover:text-white"
                 }`}
               >
@@ -96,15 +89,18 @@ export default function Navbar() {
           })}
         </nav>
 
-        <div className="flex items-center gap-3 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 backdrop-blur-md">
+        <a
+          href={`mailto:${profile.email}`}
+          className="interactive hidden items-center gap-3 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 backdrop-blur-md transition hover:border-sky-200/35 hover:bg-sky-200/10 md:flex"
+        >
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-sky-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-400" />
           </span>
           <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80">
-            SYSTEM ACTIVE
+            Available
           </span>
-        </div>
+        </a>
       </div>
     </motion.header>
   );
