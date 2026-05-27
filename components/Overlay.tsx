@@ -60,21 +60,10 @@ function CopyBlock({
   const opacity = useTransform(progress, range, [0, 1, 1, 0]);
   const y = useTransform(progress, range, [60, 0, 0, -60]);
   const x = useTransform(progress, [range[0], range[3]], xRange);
-  const fontWeight = useTransform(
-    progress,
-    [range[0], (range[1] + range[2]) / 2, range[3]],
-    [400, 700, 400]
-  );
-  const spatialBlur = useTransform(progress, [range[0], range[1], range[2], range[3]], [8, 0, 0, 8]);
   const scrollVelocity = useVelocity(progress);
   const velocitySpring = useSpring(scrollVelocity, { stiffness: 180, damping: 30 });
   const skewY = useTransform(velocitySpring, [-1, 0, 1], [-6, 0, 6]);
   const scaleY = useTransform(velocitySpring, [-1, 0, 1], [1.06, 1, 1.06]);
-  const velocityBlurVal = useTransform(velocitySpring, [-1.2, 0, 1.2], [4, 0, 4]);
-  const filterVal = useTransform([spatialBlur, velocityBlurVal], ([spatial, velocity]) => {
-    if (reduceMotion) return "none";
-    return `blur(${Number(spatial) + Number(velocity)}px)`;
-  });
 
   const alignment =
     align === "center"
@@ -90,13 +79,11 @@ function CopyBlock({
         x: reduceMotion ? 0 : x,
         y: reduceMotion ? 0 : y,
         scaleY: reduceMotion ? 1 : scaleY,
-        skewY: reduceMotion ? 0 : skewY,
-        filter: filterVal,
-        fontWeight
+        skewY: reduceMotion ? 0 : skewY
       }}
-      className={`absolute inset-x-5 top-1/2 flex max-w-5xl -translate-y-1/2 flex-col ${alignment} md:inset-x-12`}
+      className={`absolute inset-x-5 top-1/2 flex max-w-5xl -translate-y-1/2 flex-col [will-change:transform,opacity] ${alignment} md:inset-x-12`}
     >
-      <span className="mb-6 rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.28em] text-sky-200/90 backdrop-blur-md">
+      <span className="mb-6 rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.28em] text-sky-200/90 backdrop-blur-sm">
         {eyebrow}
       </span>
       <h1
@@ -120,7 +107,7 @@ function CopyBlock({
               className={`interactive rounded-full px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] transition ${
                 index === 0
                   ? "bg-white text-ink hover:bg-sky-200"
-                  : "border border-white/14 bg-white/[0.055] text-white/76 backdrop-blur-md hover:border-sky-200/40 hover:bg-sky-200/10 hover:text-white"
+                  : "border border-white/14 bg-white/[0.055] text-white/76 backdrop-blur-sm hover:border-sky-200/40 hover:bg-sky-200/10 hover:text-white"
               }`}
             >
               {cta.label}
