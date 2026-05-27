@@ -549,7 +549,7 @@ Relevant lines: card tilt values at `components/Projects.tsx:598`, rAF tilt at `
 
 ### Runtime Flow
 
-`Projects` measures track scroll width on mount/resize (`components/Projects.tsx:740-752`) and stores `travelDistance`. `useScroll` maps the section scroll progress to `rawX`, and `useSpring` smooths the horizontal translation (`components/Projects.tsx:755-756`). Desktop section is `h-[420vh]` with a sticky viewport (`components/Projects.tsx:760-761`).
+`Projects` measures track scroll width on mount/resize and stores `travelDistance`. `useScroll` maps the section scroll progress to `rawX`, and `useSpring` smooths the horizontal translation. Desktop section is `h-[420vh]` with a sticky viewport. The Work heading sits in normal top space inside the sticky viewport; the horizontal track is padded below it so the cards do not pass underneath the title.
 
 `ProjectCard` caches its bounds on mouse enter (`components/Projects.tsx:620-623`), stores pointer coordinates, and updates tilt inside a rAF (`components/Projects.tsx:625-631`).
 
@@ -568,7 +568,7 @@ Relevant lines: card tilt values at `components/Projects.tsx:598`, rAF tilt at `
 ### Potential Bugs
 
 - Images/content changes after initial measure may require remeasurement.
-- Very long project text can overflow fixed-height desktop cards.
+- Very long project text can overflow fixed-height desktop cards; tune card height/title size together.
 - If `.project-card` is removed, cursor will not switch to VIEW mode.
 
 ### Refactoring Opportunities
@@ -632,24 +632,28 @@ Device detection runs on mount and resize (`components/CustomCursor.tsx:295-313`
 
 ## `components/KineticMarquee.tsx`
 
-Relevant lines: scroll velocity at `components/KineticMarquee.tsx:443`, animation frame at `components/KineticMarquee.tsx:457`, wrap transform at `components/KineticMarquee.tsx:477`.
+Relevant implementation areas: pointer handlers, animation-frame loop, motion value wrapping, and reduced-motion handling.
 
 ### Responsibilities
 
 - Displays an infinite horizontal marquee.
-- Reacts to scroll velocity.
+- Autoplays slowly enough for readability.
+- Smoothly pauses on hover.
+- Lets pointer/touch drag update position.
+- Uses release velocity as momentum and as the new autoplay direction.
 - Respects reduced motion.
 
 ### Dependencies
 
-- Framer Motion `useAnimationFrame`, `useMotionValue`, `useVelocity`, `useSpring`, `useTransform`.
+- Framer Motion `useAnimationFrame`, `useMotionValue`, `useReducedMotion`, `useTransform`.
 - `wrap` helper from Framer Motion.
 
 ### Inputs
 
 - `text` prop.
 - Optional `speed` prop.
-- Global scroll position.
+- Pointer movement while dragging.
+- Hover state.
 
 ### Outputs
 
@@ -657,17 +661,18 @@ Relevant lines: scroll velocity at `components/KineticMarquee.tsx:443`, animatio
 
 ### Runtime Flow
 
-`scrollY` feeds `useVelocity`, smoothed by `useSpring` (`components/KineticMarquee.tsx:443-450`). On each animation frame, it advances `baseX` unless reduced motion is enabled (`components/KineticMarquee.tsx:457-473`). `wrap(-50, 0, v)` loops the translation (`components/KineticMarquee.tsx:477`).
+The component stores hot interaction state in refs: drag status, hover status, direction, current velocity, drag velocity, and momentum velocity. Pointer down captures the pointer, pointer move directly adjusts `baseX`, and pointer up uses the last drag velocity to set momentum and autoplay direction. On each animation frame, the loop eases autoplay strength toward paused or active, decays momentum, blends velocity, and updates `baseX`. `wrap(-50, 0, value)` keeps the track looping seamlessly.
 
 ### Common Modifications
 
 - Change marquee text where mounted in `app/page.tsx:51`.
-- Tune `speed` and velocity multiplier.
+- Tune `speed`, momentum multiplier, decay, and lerp factors.
 - Reduce duplicate spans if layout changes.
 
 ### Potential Bugs
 
 - Continuous rAF means this is always animating unless reduced motion is enabled.
+- Pointer capture can fail if the pointer is cancelled; the implementation catches release errors.
 - Heavy blur background can cost paint on weaker devices.
 
 ### Refactoring Opportunities
@@ -720,20 +725,22 @@ Relevant lines: shell at `components/ProfileSections.tsx:140`, section exports a
 
 ## `components/Contact.tsx`
 
-Relevant lines: contact items at `components/Contact.tsx:319`, form state at `components/Contact.tsx:328`, audio at `components/Contact.tsx:334`, submit at `components/Contact.tsx:360`.
+Relevant implementation areas: contact links, controlled form state, submit handler, success/error UI, and optional hover audio.
 
 ### Responsibilities
 
 - Shows contact details from `profile`.
-- Renders a demo contact form.
+- Renders a real contact form.
+- Sends form submissions to `/api/contact`.
 - Offers optional subtle hover sound.
-- Displays submitted confirmation.
+- Displays submitted confirmation, error fallback, and back-to-form recovery.
 
 ### Dependencies
 
 - `profile` from content.
 - Framer Motion for submitted confirmation and sound icon bars.
 - Web Audio API.
+- `app/api/contact/route.ts` for email delivery.
 
 ### Inputs
 
@@ -743,35 +750,80 @@ Relevant lines: contact items at `components/Contact.tsx:319`, form state at `co
 ### Outputs
 
 - Contact links.
-- Simulated submission state.
+- Email send request to the API route.
+- Success or error UI state.
 - Optional hover tones.
 
 ### Runtime Flow
 
-`contactItems` derives links from `profile` (`components/Contact.tsx:319-325`). `handleSubmit` prevents default, simulates a 900ms submit, clears the form, and shows a success message (`components/Contact.tsx:360-368`).
+`contactItems` derives links from `profile`. `handleSubmit` prevents default, sets loading state, POSTs the controlled form values to `/api/contact`, and reads the JSON response. On success it clears the form and shows "Message sent." On failure it displays the returned error and a direct `mailto:` fallback. The success screen includes a `Back to form` button that resets the view.
 
 ### Important State
 
 - `formData`: controlled input values.
 - `isSubmitting`: disables submit UI.
 - `submitted`: toggles form vs success message.
+- `submitError`: stores API validation/configuration/provider errors.
 - `soundEnabled`: guards Web Audio.
 
 ### Common Modifications
 
-- Replace simulated submit with a real API route.
+- Tune error copy and provider setup messaging.
 - Add validation or spam protection.
 - Remove sound if you want a more conservative portfolio.
 
 ### Potential Bugs
 
-- The form does not send email yet; success copy says this explicitly.
+- The form needs `RESEND_API_KEY` to send in production.
+- `CONTACT_FROM_EMAIL` must be verified in Resend for a professional sender address.
 - AudioContext may fail or be blocked by browser policy.
 
 ### Refactoring Opportunities
 
-- Add `/app/api/contact/route.ts` for real submissions.
+- Add spam/rate-limit protection.
 - Move `contactItems` to `lib/content.ts`.
+
+## `app/api/contact/route.ts`
+
+### Responsibilities
+
+- Accepts contact form POST requests.
+- Validates required fields and email format.
+- Sends the message through Resend's HTTP API.
+- Keeps `RESEND_API_KEY` server-side.
+- Escapes submitted text before rendering it into HTML email content.
+
+### Dependencies
+
+- Next.js `NextResponse`.
+- `profile.email` fallback from `lib/content.ts`.
+- Environment variables: `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`, `CONTACT_TO_EMAIL`.
+
+### Inputs
+
+- JSON body containing `name`, `email`, and `message`.
+
+### Outputs
+
+- `{ ok: true }` on success.
+- `{ error: string }` with an appropriate status code on validation, configuration, or provider failure.
+
+### Runtime Flow
+
+The route parses JSON, trims fields, validates required values and email shape, checks `RESEND_API_KEY`, builds plain text and HTML email bodies, calls `https://api.resend.com/emails`, then returns JSON to the form.
+
+### Common Modifications
+
+- Change email subject/body formatting.
+- Add spam protection.
+- Add rate limiting.
+- Swap Resend for another provider.
+
+### Potential Bugs
+
+- Missing or invalid `RESEND_API_KEY` returns a 503 configuration message.
+- Unverified `CONTACT_FROM_EMAIL` can cause provider rejection.
+- The simple regex is enough for UI validation but not a full RFC email validator.
 
 ## `app/globals.css`
 

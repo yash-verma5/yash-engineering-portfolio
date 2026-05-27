@@ -285,25 +285,41 @@ Lenis is lightweight and simple to integrate with a root client provider.
 
 Related files:
 - `components/Contact.tsx`
+- `app/api/contact/route.ts`
 - `lib/content.ts`
 
 ### What Problem It Solves
 
-The contact section provides real contact information and a polished form-like interaction.
+The contact section provides real contact information and a form that can deliver messages without exposing email-provider secrets to the browser.
 
-### Current Limitation
+### Why This Approach Was Chosen
 
-The form is local-only. It does not send email or submit to an API.
+A Next.js Route Handler keeps the API key server-side, validates requests, and lets the client component focus on UI states: loading, success, error fallback, and back-to-form recovery.
+
+### Important Concepts
+
+- Client components submit with `fetch()`.
+- Route Handlers run on the server and can read environment variables.
+- Provider failures should return useful JSON errors rather than fake success.
+- User-submitted strings should be escaped before rendering into HTML email.
 
 ### Alternatives
 
 - `mailto:` link only.
-- Formspree/Resend/EmailJS integration.
-- Next.js route handler with email provider.
+- Formspree/Getform hosted form endpoint.
+- EmailJS client-side integration.
+- A server action instead of a route handler.
 
 ### Common Mistakes to Avoid
 
-- Do not imply the form sends email unless it actually does.
+- Do not imply the form sends email unless the provider is configured and tested.
+- Do not expose `RESEND_API_KEY` to client code.
 - Keep direct email visible.
-- Validate real sending once a backend is added.
+- Add spam/rate-limit protection before expecting public traffic.
 
+### Debugging Tips
+
+- If the form returns a setup error, check `RESEND_API_KEY` in Vercel/local env.
+- If Resend rejects the request, verify `CONTACT_FROM_EMAIL`.
+- Watch the Network tab for `/api/contact` status and JSON response.
+- Use the direct email fallback while provider configuration is incomplete.

@@ -48,7 +48,7 @@ function ProjectCard({
         transformStyle: "preserve-3d"
       }}
       className={`project-card group relative overflow-hidden rounded-lg border border-white/12 bg-white/[0.055] shadow-glow backdrop-blur-xl transition duration-700 hover:-translate-y-1 hover:border-sky-200/36 hover:bg-white/[0.085] ${
-        compact ? "min-h-96 p-6" : "h-[66vh] min-h-[35rem] w-[76vw] max-w-[60rem] shrink-0 p-8 md:p-10"
+        compact ? "min-h-96 p-6" : "h-[46vh] min-h-[24rem] w-[76vw] max-w-[56rem] shrink-0 p-7 md:p-8"
       }`}
     >
       <div className="absolute inset-0 opacity-0 transition duration-700 group-hover:opacity-100">
@@ -78,7 +78,7 @@ function ProjectCard({
               </span>
             ))}
           </div>
-          <h3 className="mb-5 max-w-2xl text-3xl font-semibold tracking-[-0.04em] text-white md:text-6xl">
+          <h3 className="mb-5 max-w-2xl text-3xl font-semibold tracking-[-0.04em] text-white md:text-5xl">
             {project.title}
           </h3>
           <p className="max-w-2xl text-base leading-7 text-white/62 md:text-lg">
@@ -150,15 +150,15 @@ export default function Projects() {
   return (
     <section id="work" className="relative bg-[#08090d]">
       <div ref={sectionRef} className="relative hidden h-[420vh] md:block">
-        <div className="sticky top-0 flex h-screen w-full items-center overflow-hidden px-10">
+        <div className="sticky top-0 h-screen w-full overflow-hidden px-10 pt-20">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/24 to-transparent" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_24%,rgba(125,211,252,0.08),transparent_34rem)]" />
           <motion.div style={{ scaleX: progressScale }} className="absolute inset-x-10 bottom-10 z-20 h-px origin-left bg-gradient-to-r from-sky-200 via-emerald-200 to-transparent" />
-          <div className="absolute left-10 top-24 z-10 max-w-4xl">
+          <div className="relative z-10 max-w-4xl">
             <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-sky-100/65">
               Featured Work
             </p>
-            <h2 className="text-5xl font-semibold leading-none tracking-[-0.05em] text-white lg:text-7xl">
+            <h2 className="text-5xl font-semibold leading-none tracking-[-0.05em] text-white lg:text-6xl">
               Enterprise case studies and public builds.
             </h2>
             <p className="mt-6 max-w-2xl text-base leading-7 text-white/50">
@@ -169,9 +169,9 @@ export default function Projects() {
           <motion.div
             ref={trackRef}
             style={{ x, perspective: 1200 }}
-            className="flex w-max items-center gap-6 pt-40"
+            className="flex w-max items-center gap-6 pt-10"
           >
-            <div className="w-[34vw] shrink-0" />
+            <div className="w-[8vw] shrink-0" />
             {projects.map((project, index) => (
               <ProjectCard key={project.title} project={project} index={index} />
             ))}
