@@ -4,21 +4,23 @@ This document lists missing features, technical debt, performance opportunities,
 
 ## Missing Features
 
-### Real Contact Form Delivery
+### Contact Form Delivery Hardening
 
 Current state:
-- `components/Contact.tsx` contains a local demo form state.
-- It does not send email or persist messages.
+- `components/Contact.tsx` posts to `/api/contact`.
+- `app/api/contact/route.ts` validates payloads and sends through Resend's HTTP API.
+- The UI shows success, error fallback, and a back-to-form recovery path.
 
-Potential implementations:
-- Next.js Route Handler + Resend.
-- Formspree endpoint.
-- EmailJS client-side integration.
-- Simple `mailto:` only, if no backend is desired.
+Remaining work:
+- Configure `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`, and `CONTACT_TO_EMAIL` in Vercel.
+- Verify the sender/domain in Resend before production use.
+- Add spam protection such as Turnstile, hCaptcha, or a honeypot field.
+- Add rate limiting if the site receives meaningful traffic.
+- Consider logging failed sends server-side if operational visibility is needed.
 
 Related files:
 - `components/Contact.tsx`
-- future `app/api/contact/route.ts`
+- `app/api/contact/route.ts`
 
 ### GreenMart Links
 
@@ -141,6 +143,7 @@ Related files:
 Current state:
 - Desktop uses pinned horizontal track.
 - Mobile falls back to vertical grid.
+- Recent layout fix moved the desktop card rail below the heading so cards do not overlap the Work title.
 
 Potential improvements:
 - Add ResizeObserver for track measurement.
@@ -200,6 +203,8 @@ Recommended:
 - Verify all nav buttons and links are reachable.
 - Add visible focus styles for custom-styled links/buttons.
 - Confirm Konami HUD restore button is focus-visible.
+- Verify the mobile navigation panel traps or manages focus acceptably when open.
+- Confirm Escape closes the mobile panel and contact error/success states remain keyboard usable.
 
 Related files:
 - `app/globals.css`
@@ -321,4 +326,3 @@ Before production deployment:
 - Confirm contact method works.
 - Confirm Konami mode starts and restores cleanly.
 - Confirm `npm run build` passes.
-

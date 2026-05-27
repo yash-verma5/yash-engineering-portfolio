@@ -21,6 +21,7 @@ export default function Contact() {
   const [formData, setFormData] = useState({ name: "", email: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -50,15 +51,36 @@ export default function Contact() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
+    setSubmitError("");
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result?.error || "Unable to send the message right now.");
+      }
+
       setIsSubmitting(false);
       setSubmitted(true);
       setFormData({ name: "", email: "", message: "" });
       playHoverTone(1200);
-    }, 900);
+    } catch (error) {
+      setIsSubmitting(false);
+      setSubmitError(error instanceof Error ? error.message : "Unable to send the message right now.");
+    }
+  };
+
+  const resetFormView = () => {
+    setSubmitted(false);
+    setSubmitError("");
   };
 
   return (
@@ -154,17 +176,18 @@ export default function Contact() {
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold tracking-tight text-white">Message staged.</h3>
+                <h3 className="text-2xl font-bold tracking-tight text-white">Message sent.</h3>
                 <p className="mt-3 text-sm text-white/50">
-                  This demo form does not send email yet. Use the direct email link for live contact.
+                  Thanks for reaching out. I will reply at the email address you shared.
                 </p>
-                <a
-                  href={`mailto:${profile.email}`}
+                <button
+                  type="button"
+                  onClick={resetFormView}
                   onMouseEnter={() => playHoverTone(440)}
-                  className="interactive mt-8 text-xs font-semibold uppercase tracking-[0.2em] text-sky-200 underline underline-offset-4"
+                  className="interactive mx-auto mt-8 rounded-full border border-white/12 bg-white/[0.055] px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-sky-100/80 transition hover:border-sky-200/40 hover:bg-sky-200/10 hover:text-white"
                 >
-                  Email Yash directly
-                </a>
+                  Back to form
+                </button>
               </motion.div>
             ) : (
               <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -223,11 +246,26 @@ export default function Contact() {
                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-black border-t-transparent" />
                   ) : (
                     <>
-                      <span>Prepare Message</span>
+                      <span>Send Message</span>
                       <span className="transition-transform duration-300 group-hover:translate-x-1">-&gt;</span>
                     </>
                   )}
                 </button>
+                {submitError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-lg border border-amber-200/20 bg-amber-200/[0.06] p-4 text-sm leading-6 text-amber-100/78"
+                  >
+                    <p>{submitError}</p>
+                    <a
+                      href={`mailto:${profile.email}?subject=Portfolio%20inquiry`}
+                      className="interactive mt-3 inline-flex text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 underline underline-offset-4"
+                    >
+                      Email Yash directly
+                    </a>
+                  </motion.div>
+                )}
               </form>
             )}
           </div>

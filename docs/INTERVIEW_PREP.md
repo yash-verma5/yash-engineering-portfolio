@@ -296,7 +296,7 @@ Product:
 
 - Add downloadable resume.
 - Add real GreenMart links.
-- Add real contact form backend.
+- Harden contact form delivery with spam protection and rate limiting.
 - Add analytics for section engagement.
 
 ## Sample Interview Questions and Strong Answers
@@ -327,7 +327,15 @@ A: Mobile gets simpler interactions: no custom cursor, project cards become a ve
 
 ### Q: What would you improve next?
 
-A: I would finish asset optimization by serving WebP/AVIF sequences with long-lived cache headers, extract the sequence loader into a reusable hook, add reduced-motion CSS for global effects, and add a real contact endpoint with validation and spam protection.
+A: I would finish asset optimization by serving WebP/AVIF sequences with long-lived cache headers, extract the sequence loader into a reusable hook, add reduced-motion CSS for global effects, and harden the contact endpoint with spam protection and rate limiting.
+
+### Q: How does the contact form send email safely?
+
+A: The form submits to a Next.js Route Handler at `/api/contact`. The API key stays server-side in `RESEND_API_KEY`, the route validates the payload, escapes submitted text for the HTML email, and sends through Resend. If configuration or provider delivery fails, the UI shows an error with a direct email fallback instead of fake success.
+
+### Q: Why did you change the mobile navigation direction?
+
+A: The first mobile island was too visually present in the resting state. I kept the desktop nav unchanged and replaced the mobile default with a quieter top-right trigger. The richer glass panel appears only after tap, so mobile navigation is useful without competing with the hero and content.
 
 ### Q: What does this project show about backend engineering?
 

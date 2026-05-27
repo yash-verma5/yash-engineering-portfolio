@@ -306,7 +306,7 @@ Waiting for every frame before showing the page creates a slow first-load experi
 ## Decision: Desktop Horizontal Projects, Mobile Vertical Grid
 
 **Why it was made:**
-Horizontal pinned scrolling feels premium on desktop, but mobile horizontal pinning can feel heavy and awkward. The component renders a desktop pinned section and a mobile grid fallback (`components/Projects.tsx:760`, `components/Projects.tsx:788`).
+Horizontal pinned scrolling feels premium on desktop, but mobile horizontal pinning can feel heavy and awkward. The component renders a desktop pinned section and a mobile grid fallback. The desktop rail is placed below the Work heading so cards do not overlap the title.
 
 **Advantages:**
 
@@ -328,6 +328,34 @@ Horizontal pinned scrolling feels premium on desktop, but mobile horizontal pinn
 **Files involved:**
 
 - `components/Projects.tsx`
+- `lib/content.ts`
+
+## Decision: Quiet Mobile Trigger With Rich Mobile Nav Panel
+
+**Why it was made:**
+The first mobile island concept was visually too intrusive in its collapsed state. The current design keeps the resting state as a small top-right trigger inside the navbar, then opens a richer glass navigation panel only after user intent.
+
+**Advantages:**
+
+- Closed state does not compete with hero/content.
+- Open state still provides labels, shortcuts, active section state, and progress context.
+- Desktop navbar remains unchanged.
+- Escape and backdrop close keep the interaction recoverable.
+
+**Disadvantages:**
+
+- The mobile nav has separate markup from desktop nav.
+- Focus management should be audited if the panel becomes more modal-like.
+
+**Alternatives considered:**
+
+- Bottom floating island.
+- Full-screen mobile menu.
+- Plain hamburger dropdown.
+
+**Files involved:**
+
+- `components/Navbar.tsx`
 - `lib/content.ts`
 
 ## Decision: Use Tailwind for Styling
@@ -386,29 +414,33 @@ Mobile devices have touch input, smaller screens, and less predictable performan
 - `components/ScrollyCanvas.tsx`
 - `components/Navbar.tsx`
 
-## Decision: Demo Contact Form Instead of Backend Submission
+## Decision: Use a Next Route Handler for Contact Email
 
 **Why it was made:**
-For a portfolio, direct contact links are more reliable than a form endpoint that needs spam protection, email delivery, and secrets.
+The contact form should send real messages instead of showing a fake success state. A Next.js Route Handler keeps the email API key server-side while allowing the client form to remain lightweight.
 
 **Advantages:**
 
-- No backend or API secrets.
-- Clear direct email fallback.
-- Still demonstrates polished UI state.
+- API secrets stay off the client.
+- Form can show real success/failure states.
+- Direct email fallback remains available.
+- Resend can be configured through Vercel environment variables.
 
 **Disadvantages:**
 
-- Form does not send real messages.
-- Users might expect submission to contact you unless they read the confirmation.
+- Requires provider configuration before production delivery works.
+- Needs spam/rate-limit hardening if the site receives meaningful traffic.
+- Sender/domain verification is required for a professional `from` address.
 
 **Alternatives considered:**
 
-- Next.js API route with email provider.
 - Formspree/Getform.
+- EmailJS client-side delivery.
+- `mailto:` only.
 - Remove form entirely.
 
 **Files involved:**
 
 - `components/Contact.tsx`
+- `app/api/contact/route.ts`
 - `lib/content.ts`

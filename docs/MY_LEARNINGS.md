@@ -497,3 +497,72 @@ Animations need high-frequency updates without React render loops. Business/cont
 - If UI needs to re-render, use state.
 - If data is only needed by an event loop or animation frame, prefer refs.
 - If unrelated components need the same state, consider context.
+
+## Contact API Route
+
+### Concept
+
+Next.js App Router can expose backend endpoints through Route Handlers such as `app/api/contact/route.ts`.
+
+### In This Project
+
+The Contact form is still a client component because it owns inputs, loading state, success state, error copy, hover audio, and animation. On submit it sends JSON to `/api/contact`. The route validates the payload, checks `RESEND_API_KEY`, sends through Resend, and returns JSON to the UI.
+
+### Why This Was Chosen
+
+It keeps secrets server-side while preserving a responsive animated form. The form can show real delivery success, configuration errors, and direct email fallback without pretending a message was sent.
+
+### Alternatives
+
+- `mailto:` only.
+- Formspree/Getform.
+- EmailJS.
+- Server actions.
+
+### Tradeoffs
+
+- Needs Vercel environment variables.
+- Needs Resend sender/domain verification.
+- Needs spam protection before heavy public traffic.
+
+### Debugging Tips
+
+- A `503` from `/api/contact` usually means `RESEND_API_KEY` is missing.
+- A provider failure usually means the sender/domain or API key needs attention.
+- Keep `CONTACT_TO_EMAIL` explicit in production even though it defaults to the profile email.
+
+## Mobile Navigation Pattern
+
+### Concept
+
+Mobile navigation should be useful without constantly competing with content.
+
+### In This Project
+
+The first bottom island was replaced with a quieter top-right trigger inside `Navbar`. The richer nav only appears after tap, showing section labels, active state, progress, and quick actions.
+
+### Why This Was Chosen
+
+The hero and scrollytelling sections already carry a lot of visual weight. A subtle trigger keeps the default state cleaner while still giving mobile users a premium nav panel when they ask for it.
+
+### Debugging Tips
+
+- Check `activeSection` if the highlighted mobile item is wrong.
+- Verify Escape and backdrop click close the panel.
+- Keep desktop nav changes separate from the `xl:hidden` mobile panel.
+
+## Kinetic Drag Marquee
+
+### Concept
+
+Dragging feels better when pointer movement, velocity, momentum, and autoplay are part of one continuous motion model.
+
+### In This Project
+
+`KineticMarquee` uses refs for hover/drag/momentum state and a single animation-frame loop to update `baseX`. Drag release velocity determines both short-lived inertia and the long-term autoplay direction.
+
+### Debugging Tips
+
+- If it feels too fast, tune the `speed` default first.
+- If release feels too sharp, tune momentum multiplier and decay.
+- If hover fights drag, check `suppressHoverPauseRef`.

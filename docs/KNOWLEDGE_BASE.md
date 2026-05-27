@@ -16,6 +16,7 @@ The project is a Next.js 14 App Router portfolio with a cinematic scroll-linked 
 - Central sequence configuration in `lib/sequence.ts`.
 
 The primary route is `/`, implemented by `app/page.tsx`.
+The contact form is delivered through the dynamic route `app/api/contact/route.ts`.
 
 ## Folder-by-Folder Explanation
 
@@ -32,6 +33,12 @@ Next.js App Router files.
 - `app/page.tsx`
   - Home page composition.
   - Mounts navigation, cursor, Easter egg controller, visual overlays, scrollytelling hero, marquee, content sections, projects, writing, education, and contact.
+
+- `app/api/contact/route.ts`
+  - Contact form Route Handler.
+  - Validates submitted name, email, and message.
+  - Sends email with Resend's HTTP API when `RESEND_API_KEY` is configured.
+  - Returns JSON success/error responses to the Contact UI.
 
 - `app/globals.css`
   - Tailwind directives.
@@ -69,14 +76,18 @@ All React UI and behavior components.
   - Floating navigation.
   - Reads section targets from `lib/content.ts`.
   - Tracks active section by viewport position.
+  - Desktop uses the full glass pill nav.
+  - Mobile uses a quiet top-right trigger and opens a richer glass nav panel.
+  - Scroll-state animation uses rAF throttling, hysteresis, and transform/opacity changes.
 
 - `CustomCursor.tsx`
   - Desktop-only custom cursor with spring trail.
   - Detects links, buttons, inputs, and `.project-card` elements.
 
 - `KineticMarquee.tsx`
-  - Scroll velocity-reactive marquee.
-  - Uses Framer Motion velocity and animation frame APIs.
+  - Infinite kinetic skills marquee.
+  - Uses Framer Motion motion values and an animation-frame loop.
+  - Supports smooth hover pause, pointer dragging, release momentum, and direction-aware autoplay.
 
 - `LenisProvider.tsx`
   - Initializes Lenis smooth scrolling.
@@ -87,9 +98,12 @@ All React UI and behavior components.
   - Vertical card grid on mobile.
   - Uses data from `lib/content.ts`.
   - Implements 3D cursor tilt per card.
+  - Keeps the desktop card rail below the Work heading so cards do not overlap headline copy.
 
 - `Contact.tsx`
-  - Contact details, links, and local demo form state.
+  - Contact details, links, and contact form state.
+  - POSTs form submissions to `/api/contact`.
+  - Shows success, provider/configuration errors, direct email fallback, and back-to-form recovery.
   - Uses profile data from `lib/content.ts`.
 
 - `ProfileSections.tsx`
@@ -291,8 +305,8 @@ Shared state:
 
 Local state examples:
 - `ScrollyCanvas`: loaded keys and load progress.
-- `Contact`: form demo state and sound toggle.
-- `Navbar`: active section and scrolled state.
+- `Contact`: form values, submit status, error state, submitted state, and sound toggle.
+- `Navbar`: active section, scrolled state, and mobile panel open state.
 - `Projects`: measured horizontal travel distance.
 - `CustomCursor`: cursor type, visibility, touch detection.
 
@@ -315,6 +329,36 @@ Navigation uses in-page section IDs:
 - `contact`
 
 `Navbar.tsx` scrolls to each section via `element.scrollIntoView()`.
+
+## Contact Email Flow
+
+The contact form uses client state for UI and a server Route Handler for delivery.
+
+```text
+Contact form
+  -> fetch("/api/contact", POST)
+  -> app/api/contact/route.ts
+      -> parse and validate payload
+      -> require RESEND_API_KEY
+      -> call https://api.resend.com/emails
+      -> return success/error JSON
+  -> Contact UI
+      -> show "Message sent"
+      -> or show configuration/provider error with direct email fallback
+```
+
+Environment variables:
+
+```bash
+RESEND_API_KEY=your_resend_api_key
+CONTACT_FROM_EMAIL=Portfolio Contact <verified-sender@example.com>
+CONTACT_TO_EMAIL=yashv521@gmail.com
+```
+
+Notes:
+- `CONTACT_TO_EMAIL` defaults to the profile email if omitted.
+- `CONTACT_FROM_EMAIL` should use a verified Resend sender/domain in production.
+- Submitted content is HTML-escaped before being rendered into the email HTML body.
 
 ## Styling System
 
@@ -363,7 +407,7 @@ Build command:
 next build
 ```
 
-The app is statically prerendered for `/` and `/_not-found`.
+The app is statically prerendered for `/` and `/_not-found`. `/api/contact` is dynamic and server-rendered on demand.
 
 Deployment options:
 - Vercel is the natural fit for Next.js.
@@ -383,6 +427,9 @@ Runtime libraries:
 - Framer Motion: animation, scroll progress, springs, motion values.
 - Lenis: smooth scrolling.
 
+Service integrations:
+- Resend HTTP API: contact form email delivery from `app/api/contact/route.ts`.
+
 External URLs in content:
 - GitHub profile
 - LinkedIn profile
@@ -391,5 +438,4 @@ External URLs in content:
 - HouseSquare demo/repo
 - Featured article
 
-No backend API or database is currently integrated.
-
+No database is currently integrated.

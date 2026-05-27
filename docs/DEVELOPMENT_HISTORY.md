@@ -1,6 +1,6 @@
 # Development History
 
-This document reconstructs the current development history from the Git log, file structure, current uncommitted changes, and project configuration.
+This document reconstructs the current development history from the Git log, file structure, feature branches, current working changes, and project configuration.
 
 ## Repository Snapshot
 
@@ -11,9 +11,9 @@ This document reconstructs the current development history from the Git log, fil
 - Animation: Framer Motion
 - Scroll smoothing: Lenis
 - Core visual mechanic: sticky HTML5 canvas image-sequence scrollytelling
-- Current branch: `main`
-- Current remote: `origin/main`
-- Current state: committed baseline plus substantial uncommitted content/Konami-mode changes
+- Current primary branch: `main`
+- Current feature stack includes: `feature/storytelling-profile-sections`, `feature/kinetic-skills-marquee`, `feature/premium-work-contact-sections`, `feature/mobile-navbar-refinement`, and `feature/project-knowledge-docs`
+- Current working changes after the feature stack: Work section layout fix and real contact API route
 
 ## Committed Timeline
 
@@ -152,9 +152,9 @@ Architecture decisions:
 - Keep project cards interactive but mobile-friendly.
 - Use a vertical mobile fallback where horizontal pinning is too heavy.
 
-## Current Uncommitted Milestones
+## Recent Feature Branch Milestones
 
-The current worktree includes significant improvements not yet committed.
+The recent work was split into sequential feature branches so each PR can be reviewed and merged manually.
 
 ### Real Portfolio Content Replacement
 
@@ -217,6 +217,83 @@ Related files:
 - `docs/LEARNING_NOTES.md`
 - `docs/FUTURE_WORK.md`
 
+### Storytelling Profile Sections
+
+Implemented:
+- Replaced the static About section with a scroll-led storytelling section.
+- Added narrative beats for identity, systems work, debugging style, and core stack.
+- Added desktop-only layered Z-space cards, signal rail, progressive text reveal, and subtle pointer lighting.
+- Kept mobile simpler with stacked readable cards.
+- Added richer staged motion for Skills, Experience, Writing, and Education.
+
+Related files:
+- `components/ProfileSections.tsx`
+- `lib/content.ts`
+
+Architecture decisions:
+- Keep content in `lib/content.ts` and render the interaction around data.
+- Use Framer Motion motion values for scroll progress rather than React state.
+- Keep mobile fallback less complex for performance and readability.
+
+### Kinetic Skills Marquee Refinement
+
+Implemented:
+- Slowed the infinite skills rail for readability.
+- Reworked the marquee into a continuous motion-value/rAF model.
+- Added smooth hover pause/resume.
+- Added pointer dragging with direction-aware momentum.
+- Preserved seamless infinite wrapping with `wrap(-50, 0, value)`.
+
+Related file:
+- `components/KineticMarquee.tsx`
+
+Architecture decisions:
+- Use refs for hot interaction state so pointer and animation-frame updates avoid React re-renders.
+- Let drag release velocity determine the new autoplay direction.
+
+### Work and Contact Section Polish
+
+Implemented:
+- Improved Work card hover treatment and horizontal progress cue.
+- Added more immersive case-study card framing.
+- Refined Contact with ambient motion, staged reveal, stronger card treatment, and better link motion.
+
+Related files:
+- `components/Projects.tsx`
+- `components/Contact.tsx`
+
+### Mobile Navbar Refinement
+
+Implemented:
+- Removed the intrusive bottom floating island as the default mobile state.
+- Added a quieter top-right mobile hamburger trigger integrated into the navbar.
+- Added a premium glass mobile panel with section labels, active-section state, progress cue, and shortcuts.
+- Stabilized navbar scroll transitions with rAF-throttled scroll tracking and hysteresis.
+- Replaced layout-changing scroll state with transform/opacity-based animation.
+
+Related file:
+- `components/Navbar.tsx`
+
+### Work Layout Fix and Contact Email Delivery
+
+Implemented after visual review:
+- Fixed Work section overlap by placing the horizontal card rail below the heading instead of under it.
+- Reduced desktop Work card height and title scale so the section fits the viewport more cleanly.
+- Added `app/api/contact/route.ts` for real email sending through Resend's HTTP API.
+- Updated Contact form to POST to `/api/contact`.
+- Replaced the old fake "Message staged" state with "Message sent" and a `Back to form` button.
+- Added an error state with direct email fallback when email sending is not configured or provider delivery fails.
+
+Related files:
+- `components/Projects.tsx`
+- `components/Contact.tsx`
+- `app/api/contact/route.ts`
+
+Configuration:
+- `RESEND_API_KEY`
+- `CONTACT_FROM_EMAIL`
+- `CONTACT_TO_EMAIL`
+
 ## Feature Evolution Summary
 
 ### Scrollytelling Hero
@@ -246,6 +323,18 @@ Started with animated navigation, cursor, marquee, and Easter egg popup. It evol
 - Alternate sequence switching.
 - Custom cursor hook fixes.
 - Mobile-safe cursor disabling.
+- Mobile brand tap Konami trigger.
+- Quiet mobile navbar trigger plus richer mobile nav panel.
+- Smooth navbar scroll state transitions using hysteresis and transform/opacity animation.
+
+### Contact Delivery
+
+Started as a local simulated contact form. It evolved into:
+- A real Next.js Route Handler at `/api/contact`.
+- Server-side payload validation.
+- Resend API integration through environment variables.
+- HTML escaping before rendering submitted content into an email body.
+- UI success, error, direct email fallback, and back-to-form recovery.
 
 ## Important Build Fixes
 
@@ -271,12 +360,4 @@ Result:
 
 ## Current Git Status Notes
 
-As of documentation generation, application changes from the content replacement and Konami-mode work are uncommitted.
-
-Current notable untracked files:
-- `components/KonamiProvider.tsx`
-- `components/ProfileSections.tsx`
-- `lib/content.ts`
-- `public/sequence-konami/`
-- `docs/`
-
+The recent feature stack has been pushed to GitHub as separate branches for manual PR review. The latest local working changes are the Work layout correction and `/api/contact` delivery route.
