@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { profile } from "@/lib/content";
 
 const contactItems = [
@@ -13,6 +13,11 @@ const contactItems = [
 ];
 
 export default function Contact() {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const reduceMotion = Boolean(useReducedMotion());
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start end", "end end"] });
+  const ambientY = useTransform(scrollYProgress, [0, 1], [80, -30]);
+  const ambientOpacity = useTransform(scrollYProgress, [0, 0.45, 1], [0.08, 0.22, 0.34]);
   const [formData, setFormData] = useState({ name: "", email: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -57,8 +62,13 @@ export default function Contact() {
   };
 
   return (
-    <section id="contact" className="relative overflow-hidden bg-[#08090d] px-6 py-28 md:px-12 md:py-36">
+    <section id="contact" ref={sectionRef} className="relative overflow-hidden bg-[#08090d] px-6 py-28 md:px-12 md:py-36">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <motion.div
+        style={{ y: reduceMotion ? 0 : ambientY, opacity: ambientOpacity }}
+        className="pointer-events-none absolute right-[-10rem] top-10 h-[34rem] w-[34rem] rounded-full bg-sky-300/10 blur-3xl"
+      />
+      <div className="pointer-events-none absolute bottom-0 left-0 h-40 w-full bg-gradient-to-t from-black/35 to-transparent" />
 
       <div className="absolute right-6 top-6 z-20 flex items-center gap-3">
         <button
@@ -85,8 +95,14 @@ export default function Contact() {
         </button>
       </div>
 
-      <div className="mx-auto max-w-7xl">
-        <div className="grid gap-16 lg:grid-cols-[0.9fr_1.1fr]">
+      <div className="relative z-10 mx-auto max-w-7xl">
+        <motion.div
+          initial={{ opacity: 0, y: 36 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.22 }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+          className="grid gap-16 lg:grid-cols-[0.9fr_1.1fr]"
+        >
           <div className="flex flex-col justify-between">
             <div>
               <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-sky-200/60">
@@ -101,8 +117,12 @@ export default function Contact() {
             </div>
 
             <div className="mt-14 grid gap-3">
-              {contactItems.map((item) => (
-                <a
+              {contactItems.map((item, index) => (
+                <motion.a
+                  initial={{ opacity: 0, x: -16 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.55, delay: index * 0.045 }}
                   key={item.label}
                   href={item.href}
                   target={item.href.startsWith("http") ? "_blank" : undefined}
@@ -116,12 +136,13 @@ export default function Contact() {
                   <p className="mt-2 text-sm font-medium text-white/82 transition-colors group-hover:text-white">
                     {item.value}
                   </p>
-                </a>
+                </motion.a>
               ))}
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-8 backdrop-blur-md md:p-12">
+          <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] p-8 shadow-glow backdrop-blur-md md:p-12">
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-sky-200/55 to-transparent" />
             {submitted ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -210,7 +231,7 @@ export default function Contact() {
               </form>
             )}
           </div>
-        </div>
+        </motion.div>
 
         <div className="mt-28 flex flex-col justify-between gap-6 border-t border-white/[0.08] pt-12 text-xs uppercase tracking-wider text-white/45 md:flex-row">
           <p>&copy; {new Date().getFullYear()} {profile.name}. All rights reserved.</p>

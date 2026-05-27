@@ -47,13 +47,14 @@ function ProjectCard({
         rotateY: compact ? 0 : springY,
         transformStyle: "preserve-3d"
       }}
-      className={`project-card group relative overflow-hidden rounded-lg border border-white/12 bg-white/[0.055] shadow-glow backdrop-blur-xl transition duration-500 hover:border-sky-200/36 hover:bg-white/[0.085] ${
+      className={`project-card group relative overflow-hidden rounded-lg border border-white/12 bg-white/[0.055] shadow-glow backdrop-blur-xl transition duration-700 hover:-translate-y-1 hover:border-sky-200/36 hover:bg-white/[0.085] ${
         compact ? "min-h-96 p-6" : "h-[66vh] min-h-[35rem] w-[76vw] max-w-[60rem] shrink-0 p-8 md:p-10"
       }`}
     >
-      <div className="absolute inset-0 opacity-0 transition duration-500 group-hover:opacity-100">
+      <div className="absolute inset-0 opacity-0 transition duration-700 group-hover:opacity-100">
         <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-300/14 blur-3xl" />
         <div className="absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-sky-200/0 via-sky-200/70 to-sky-200/0" />
+        <div className="absolute inset-x-8 top-8 h-px origin-left scale-x-0 bg-gradient-to-r from-sky-200/70 to-transparent transition duration-700 group-hover:scale-x-100" />
       </div>
       <div
         className="relative flex h-full flex-col justify-between gap-8"
@@ -62,6 +63,9 @@ function ProjectCard({
         <div className="flex items-center justify-between text-xs uppercase tracking-[0.22em] text-white/45">
           <span>{String(index + 1).padStart(2, "0")}</span>
           <span>{project.category}</span>
+        </div>
+        <div className="pointer-events-none absolute right-8 top-20 hidden text-[8rem] font-semibold leading-none tracking-[-0.08em] text-white/[0.025] transition duration-700 group-hover:text-sky-200/[0.055] md:block">
+          {String(index + 1).padStart(2, "0")}
         </div>
         <div>
           <div className="mb-5 flex flex-wrap gap-2">
@@ -141,12 +145,15 @@ export default function Projects() {
 
   const rawX = useTransform(scrollYProgress, [0, 1], [0, -travelDistance]);
   const x = useSpring(rawX, { stiffness: 120, damping: 28, mass: 0.35 });
+  const progressScale = useSpring(scrollYProgress, { stiffness: 120, damping: 30, mass: 0.3 });
 
   return (
     <section id="work" className="relative bg-[#08090d]">
       <div ref={sectionRef} className="relative hidden h-[420vh] md:block">
         <div className="sticky top-0 flex h-screen w-full items-center overflow-hidden px-10">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/24 to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_24%,rgba(125,211,252,0.08),transparent_34rem)]" />
+          <motion.div style={{ scaleX: progressScale }} className="absolute inset-x-10 bottom-10 z-20 h-px origin-left bg-gradient-to-r from-sky-200 via-emerald-200 to-transparent" />
           <div className="absolute left-10 top-24 z-10 max-w-4xl">
             <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-sky-100/65">
               Featured Work
@@ -154,6 +161,9 @@ export default function Projects() {
             <h2 className="text-5xl font-semibold leading-none tracking-[-0.05em] text-white lg:text-7xl">
               Enterprise case studies and public builds.
             </h2>
+            <p className="mt-6 max-w-2xl text-base leading-7 text-white/50">
+              A horizontal systems pass: migration, fulfillment, integrations, full-stack builds, and documentation.
+            </p>
           </div>
 
           <motion.div

@@ -5,23 +5,28 @@ import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-
 import Overlay from "@/components/Overlay";
 import { useKonamiMode } from "@/components/KonamiProvider";
 import {
-  getSequenceSources,
-  sequenceConfigs,
-  SequenceConfig,
+  getRuntimeSequenceConfig,
+  getSequenceSource,
+  RuntimeSequenceConfig,
   SequenceKey
 } from "@/lib/sequence";
 
-type LoadedSequences = Partial<Record<SequenceKey, HTMLImageElement[]>>;
-type LoadingProgress = Partial<Record<SequenceKey, number>>;
-
+type SequenceCache = Partial<Record<SequenceKey, Array<HTMLImageElement | undefined>>>;
+type LoadedIndexSets = Partial<Record<SequenceKey, Set<number>>>;
+type LoadingIndexSets = Partial<Record<SequenceKey, Set<number>>>;
+type SequenceProgress = Partial<Record<SequenceKey, number>>;
 type IdleHandle = number | ReturnType<typeof globalThis.setTimeout>;
 
-const requestIdle = (callback: () => void): IdleHandle => {
+type LoadMode = "initial" | "background";
+
+const MOBILE_QUERY = "(max-width: 768px), (pointer: coarse)";
+
+const requestIdle = (callback: () => void, timeout = 1800): IdleHandle => {
   if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-    return window.requestIdleCallback(callback, { timeout: 2200 });
+    return window.requestIdleCallback(callback, { timeout });
   }
 
-  return globalThis.setTimeout(callback, 900);
+  return globalThis.setTimeout(callback, Math.min(timeout, 1200));
 };
 
 const cancelIdle = (id: IdleHandle) => {
@@ -69,43 +74,80 @@ function drawCover(
   );
 }
 
+function nearestLoadedFrame(targetIndex: number, loadedIndexes?: Set<number>) {
+  if (!loadedIndexes?.size) return -1;
+  if (loadedIndexes.has(targetIndex)) return targetIndex;
+
+  for (let index = targetIndex - 1; index >= 0; index -= 1) {
+    if (loadedIndexes.has(index)) return index;
+  }
+
+  const loadedArray = Array.from(loadedIndexes);
+  const maxLoadedIndex = loadedArray.length ? Math.max(...loadedArray) : targetIndex;
+
+  for (let index = targetIndex + 1; index <= maxLoadedIndex; index += 1) {
+    if (loadedIndexes.has(index)) return index;
+  }
+
+  return -1;
+}
+
 export default function ScrollyCanvas() {
   const { active: konamiActive } = useKonamiMode();
+  const [preferMobile, setPreferMobile] = useState(false);
   const activeKey: SequenceKey = konamiActive ? "konami" : "default";
-  const activeConfig = sequenceConfigs[activeKey];
+  const activeConfig = getRuntimeSequenceConfig(activeKey, { preferMobile });
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stickyRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const sequencesRef = useRef<LoadedSequences>({});
+  const sequenceCacheRef = useRef<SequenceCache>({});
+  const loadedIndexesRef = useRef<LoadedIndexSets>({});
+  const loadingIndexesRef = useRef<LoadingIndexSets>({});
+  const activeConfigRef = useRef(activeConfig);
   const mountedRef = useRef(true);
-  const loadingRef = useRef<Partial<Record<SequenceKey, boolean>>>({});
   const latestFrameRef = useRef(0);
+  const latestKeyRef = useRef<SequenceKey>(activeKey);
   const rafRef = useRef<number | null>(null);
-  const [loadedKeys, setLoadedKeys] = useState<SequenceKey[]>([]);
-  const [loadProgress, setLoadProgress] = useState<LoadingProgress>({});
+  const idleHandlesRef = useRef<IdleHandle[]>([]);
+  const [revealed, setRevealed] = useState(false);
+  const [loadProgress, setLoadProgress] = useState<SequenceProgress>({});
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end end"]
   });
 
-  const isSequenceLoaded = useCallback(
-    (key: SequenceKey) => loadedKeys.includes(key) && Boolean(sequencesRef.current[key]?.length),
-    [loadedKeys]
-  );
+  useEffect(() => {
+    activeConfigRef.current = activeConfig;
+  }, [activeConfig]);
 
-  const renderFrame = useCallback((index: number, key: SequenceKey = activeKey) => {
+  const ensureSequenceStores = useCallback((key: SequenceKey) => {
+    if (!sequenceCacheRef.current[key]) sequenceCacheRef.current[key] = [];
+    if (!loadedIndexesRef.current[key]) loadedIndexesRef.current[key] = new Set<number>();
+    if (!loadingIndexesRef.current[key]) loadingIndexesRef.current[key] = new Set<number>();
+  }, []);
+
+  const updateProgress = useCallback((config: RuntimeSequenceConfig) => {
+    const loaded = loadedIndexesRef.current[config.key]?.size ?? 0;
+    setLoadProgress((current) => ({
+      ...current,
+      [config.key]: loaded / config.totalFrames
+    }));
+  }, []);
+
+  const renderFrame = useCallback((index: number, key: SequenceKey = latestKeyRef.current) => {
     const canvas = canvasRef.current;
-    const frames = sequencesRef.current[key];
-    const image = frames?.[index];
+    const loadedIndex = nearestLoadedFrame(index, loadedIndexesRef.current[key]);
+    const image = loadedIndex >= 0 ? sequenceCacheRef.current[key]?.[loadedIndex] : undefined;
 
-    if (!canvas || !image?.complete) return;
+    if (!canvas || !image?.complete) return false;
 
     const context = canvas.getContext("2d");
-    if (!context) return;
+    if (!context) return false;
 
     drawCover(context, image, canvas);
-  }, [activeKey]);
+    return true;
+  }, []);
 
   const sizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -118,93 +160,164 @@ export default function ScrollyCanvas() {
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
 
-    renderFrame(latestFrameRef.current);
+    renderFrame(latestFrameRef.current, latestKeyRef.current);
   }, [renderFrame]);
 
-  const preloadSequence = useCallback((config: SequenceConfig) => {
-    if (sequencesRef.current[config.key]?.length || loadingRef.current[config.key]) {
-      return;
-    }
+  const loadFrame = useCallback((config: RuntimeSequenceConfig, index: number) => {
+    ensureSequenceStores(config.key);
 
-    loadingRef.current[config.key] = true;
-    let loadedImages = 0;
-    const sources = getSequenceSources(config);
+    const loadedIndexes = loadedIndexesRef.current[config.key];
+    const loadingIndexes = loadingIndexesRef.current[config.key];
+    const cache = sequenceCacheRef.current[config.key];
 
-    const images = sources.map((src) => {
+    if (!loadedIndexes || !loadingIndexes || !cache) return Promise.resolve();
+    if (loadedIndexes.has(index) || loadingIndexes.has(index)) return Promise.resolve();
+
+    loadingIndexes.add(index);
+
+    return new Promise<void>((resolve) => {
       const image = new Image();
       image.decoding = "async";
-      image.src = src;
+      image.src = getSequenceSource(config, index);
 
-      const markLoaded = () => {
-        if (!mountedRef.current) return;
+      const complete = async () => {
+        try {
+          if (image.complete) await image.decode();
+        } catch {
+          // Decode can fail for cached/partially decoded images; keep progressive loading moving.
+        }
 
-        loadedImages += 1;
-        setLoadProgress((current) => ({
-          ...current,
-          [config.key]: loadedImages / sources.length
-        }));
+        if (!mountedRef.current) {
+          resolve();
+          return;
+        }
 
-        if (loadedImages === sources.length) {
-          sequencesRef.current[config.key] = images;
-          loadingRef.current[config.key] = false;
-          setLoadedKeys((current) => (current.includes(config.key) ? current : [...current, config.key]));
+        cache[index] = image;
+        loadedIndexes.add(index);
+        loadingIndexes.delete(index);
+        updateProgress(config);
 
-          if (config.key === activeKey) {
+        if (config.key === latestKeyRef.current) {
+          const targetFrame = latestFrameRef.current;
+          if (index === targetFrame || index === 0) {
             requestAnimationFrame(() => {
-              sizeCanvas();
-              renderFrame(latestFrameRef.current, config.key);
+              renderFrame(targetFrame, config.key);
+              if (config.key === "default" && loadedIndexes.has(0)) setRevealed(true);
             });
           }
         }
+
+        resolve();
       };
 
-      image.onload = async () => {
-        try {
-          await image.decode();
-        } catch {
-          // Some browsers already decode before this promise resolves.
-        }
-
-        markLoaded();
+      image.onload = complete;
+      image.onerror = () => {
+        loadingIndexes.delete(index);
+        updateProgress(config);
+        resolve();
       };
+    });
+  }, [ensureSequenceStores, renderFrame, updateProgress]);
 
-      image.onerror = markLoaded;
-
-      return image;
+  const loadFramesWithLimit = useCallback(async (
+    config: RuntimeSequenceConfig,
+    indexes: number[],
+    concurrency: number
+  ) => {
+    const queue = [...indexes];
+    const workers = Array.from({ length: Math.max(1, concurrency) }, async () => {
+      while (queue.length && mountedRef.current) {
+        const index = queue.shift();
+        if (index === undefined) return;
+        await loadFrame(config, index);
+      }
     });
 
-    sequencesRef.current[config.key] = images;
-  }, [activeKey, renderFrame, sizeCanvas]);
+    await Promise.all(workers);
+  }, [loadFrame]);
+
+  const scheduleBackgroundLoad = useCallback((config: RuntimeSequenceConfig, startIndex: number) => {
+    const loadBatch = (cursor: number) => {
+      if (!mountedRef.current || cursor >= config.totalFrames) return;
+
+      const indexes = Array.from(
+        { length: Math.min(config.backgroundBatchSize, config.totalFrames - cursor) },
+        (_, offset) => cursor + offset
+      );
+
+      loadFramesWithLimit(config, indexes, config.concurrency).finally(() => {
+        const idleId = requestIdle(() => loadBatch(cursor + config.backgroundBatchSize), 2400);
+        idleHandlesRef.current.push(idleId);
+      });
+    };
+
+    const idleId = requestIdle(() => loadBatch(startIndex), 1400);
+    idleHandlesRef.current.push(idleId);
+  }, [loadFramesWithLimit]);
+
+  const startSequenceLoad = useCallback((config: RuntimeSequenceConfig, mode: LoadMode) => {
+    ensureSequenceStores(config.key);
+
+    const firstBatchEnd = Math.min(config.initialFramesToLoad, config.totalFrames);
+    const initialIndexes = Array.from({ length: firstBatchEnd }, (_, index) => index);
+
+    loadFrame(config, 0).then(() => {
+      if (config.key === "default") setRevealed(true);
+      renderFrame(latestFrameRef.current, config.key);
+    });
+
+    if (mode === "initial") {
+      loadFramesWithLimit(config, initialIndexes.slice(1), config.concurrency).finally(() => {
+        scheduleBackgroundLoad(config, firstBatchEnd);
+      });
+    } else {
+      loadFramesWithLimit(config, initialIndexes.slice(1), Math.min(2, config.concurrency)).finally(() => {
+        scheduleBackgroundLoad(config, firstBatchEnd);
+      });
+    }
+  }, [ensureSequenceStores, loadFrame, loadFramesWithLimit, renderFrame, scheduleBackgroundLoad]);
+
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_QUERY);
+    const updatePreference = () => {
+      const lowMemory = "deviceMemory" in navigator && Number((navigator as Navigator & { deviceMemory?: number }).deviceMemory) <= 4;
+      setPreferMobile(media.matches || lowMemory);
+    };
+
+    updatePreference();
+    media.addEventListener("change", updatePreference);
+
+    return () => media.removeEventListener("change", updatePreference);
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
-    preloadSequence(sequenceConfigs.default);
-    let idleId: IdleHandle | undefined;
-
-    idleId = requestIdle(() => {
-      preloadSequence(sequenceConfigs.konami);
-    });
+    const defaultConfig = getRuntimeSequenceConfig("default", { preferMobile });
+    startSequenceLoad(defaultConfig, "initial");
 
     return () => {
       mountedRef.current = false;
-      if (idleId !== undefined) cancelIdle(idleId);
+      idleHandlesRef.current.forEach(cancelIdle);
+      idleHandlesRef.current = [];
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [preloadSequence]);
+  }, [preferMobile, startSequenceLoad]);
 
   useEffect(() => {
-    preloadSequence(activeConfig);
+    latestKeyRef.current = activeKey;
 
-    if (isSequenceLoaded(activeKey)) {
-      const totalFrames = activeConfig.totalFrames;
-      const frameIndex = Math.min(
-        Math.floor(Math.min(1, Math.max(0, scrollYProgress.get())) * totalFrames),
-        totalFrames - 1
-      );
-      latestFrameRef.current = frameIndex;
-      requestAnimationFrame(() => renderFrame(frameIndex, activeKey));
+    if (activeKey === "konami") {
+      startSequenceLoad(activeConfig, "background");
     }
-  }, [activeConfig, activeKey, isSequenceLoaded, preloadSequence, renderFrame, scrollYProgress]);
+
+    const frameIndex = Math.min(
+      Math.floor(Math.min(1, Math.max(0, scrollYProgress.get())) * activeConfig.totalFrames),
+      activeConfig.totalFrames - 1
+    );
+
+    latestFrameRef.current = frameIndex;
+    requestAnimationFrame(() => renderFrame(frameIndex, activeKey));
+  }, [activeConfig, activeKey, renderFrame, scrollYProgress, startSequenceLoad]);
 
   useEffect(() => {
     sizeCanvas();
@@ -214,23 +327,23 @@ export default function ScrollyCanvas() {
   }, [sizeCanvas]);
 
   useMotionValueEvent(scrollYProgress, "change", (progress) => {
-    const config = sequenceConfigs[activeKey];
+    const config = activeConfigRef.current;
     const clampedProgress = Math.min(1, Math.max(0, progress));
     const frameIndex = Math.min(
       Math.floor(clampedProgress * config.totalFrames),
       config.totalFrames - 1
     );
 
-    if (frameIndex === latestFrameRef.current && isSequenceLoaded(activeKey)) return;
+    if (frameIndex === latestFrameRef.current) return;
 
     latestFrameRef.current = frameIndex;
+    loadFrame(config, frameIndex);
+
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => renderFrame(frameIndex, activeKey));
+    rafRef.current = requestAnimationFrame(() => renderFrame(frameIndex, config.key));
   });
 
-  const activeLoaded = isSequenceLoaded(activeKey);
-  const firstLoad = !isSequenceLoaded("default");
-  const currentProgress = loadProgress[activeKey] ?? 0;
+  const currentProgress = loadProgress.default ?? 0;
 
   return (
     <div id="intro" ref={containerRef} className="relative h-[500vh]">
@@ -238,9 +351,7 @@ export default function ScrollyCanvas() {
         <canvas
           ref={canvasRef}
           aria-label="Animated portfolio sequence"
-          className={`w-full h-full transition-opacity duration-500 ${
-            activeLoaded || !firstLoad ? "opacity-100" : "opacity-0"
-          }`}
+          className={`w-full h-full transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}
         />
 
         <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-ink/30 via-transparent to-ink/65" />
@@ -248,23 +359,23 @@ export default function ScrollyCanvas() {
         <Overlay progress={scrollYProgress} />
 
         <AnimatePresence>
-          {firstLoad && (
+          {!revealed && (
             <motion.div
               initial={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.45 }}
+              transition={{ duration: 0.35 }}
               className="fixed inset-0 z-50 grid place-items-center bg-ink"
             >
               <div className="w-80 px-6">
                 <div className="mb-4 flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/45">
-                  <span className="font-semibold text-sky-200">preloading frame buffer</span>
-                  <span className="font-bold text-white">{Math.round(currentProgress * 100)}%</span>
+                  <span className="font-semibold text-sky-200">loading first frame</span>
+                  <span className="font-bold text-white">{Math.max(1, Math.round(currentProgress * 100))}%</span>
                 </div>
                 <div className="h-[2px] overflow-hidden rounded-full bg-white/10">
                   <motion.div
                     className="h-full bg-sky-300"
                     initial={{ width: 0 }}
-                    animate={{ width: `${currentProgress * 100}%` }}
+                    animate={{ width: `${Math.max(8, currentProgress * 100)}%` }}
                     transition={{ duration: 0.2 }}
                   />
                 </div>
