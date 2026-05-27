@@ -1,6 +1,6 @@
 "use client";
 
-import { MouseEvent, useRef } from "react";
+import { useRef } from "react";
 import { motion, MotionValue, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { about, education, experience, skillGroups, writing } from "@/lib/content";
 
@@ -74,26 +74,11 @@ function NarrativeBeat({
   reduceMotion: boolean;
 }) {
   const motionState = useBeatMotion(progress, index, total);
-  const spotlightX = useSpring(50, { stiffness: 180, damping: 32, mass: 0.4 });
-  const spotlightY = useSpring(50, { stiffness: 180, damping: 32, mass: 0.4 });
   const spotlightOpacity = useTransform(motionState.opacity, [0.45, 1], [0, reduceMotion ? 0 : 0.26]);
-  const spotlightBackground = useTransform(
-    [spotlightX, spotlightY],
-    ([x, y]) => `radial-gradient(circle at ${x}% ${y}%, rgba(186,230,253,0.34), rgba(125,211,252,0.08) 28%, transparent 56%)`
-  );
   const bodyLines = beat.body.match(/.{1,74}(?:\s|$)/g)?.map((line) => line.trim()).filter(Boolean) ?? [beat.body];
-
-  const handlePointerMove = (event: MouseEvent<HTMLElement>) => {
-    if (reduceMotion || window.matchMedia("(pointer: coarse)").matches) return;
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    spotlightX.set(((event.clientX - rect.left) / rect.width) * 100);
-    spotlightY.set(((event.clientY - rect.top) / rect.height) * 100);
-  };
 
   return (
     <motion.article
-      onMouseMove={handlePointerMove}
       style={{
         opacity: motionState.opacity,
         y: reduceMotion ? 0 : motionState.y,
@@ -103,15 +88,15 @@ function NarrativeBeat({
         transformPerspective: 1200,
         transformStyle: "preserve-3d"
       }}
-      className="absolute inset-0 isolate flex flex-col justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.045] p-8 shadow-glow backdrop-blur-xl md:p-10"
+      className="absolute inset-0 isolate flex flex-col justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.045] p-8 shadow-glow backdrop-blur-md [contain:layout_paint_style] [will-change:transform,opacity] md:p-10"
     >
       <motion.div
         style={{ opacity: motionState.layerOpacity }}
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(125,211,252,0.12),transparent_42%,rgba(16,185,129,0.08))]"
       />
       <motion.div
-        style={{ opacity: spotlightOpacity, background: spotlightBackground }}
-        className="pointer-events-none absolute inset-0 hidden md:block"
+        style={{ opacity: spotlightOpacity }}
+        className="pointer-events-none absolute inset-0 hidden bg-[radial-gradient(circle_at_52%_44%,rgba(186,230,253,0.28),rgba(125,211,252,0.07)_28%,transparent_56%)] md:block"
       />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-100/50 to-transparent" />
 
@@ -268,7 +253,7 @@ function SectionShell({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="relative bg-[#08090d] px-5 py-24 md:px-10 md:py-32">
+    <section id={id} className="relative bg-[#08090d] px-5 py-24 [contain-intrinsic-size:900px] [content-visibility:auto] md:px-10 md:py-32">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       <div className="mx-auto max-w-7xl">
         <div className="mb-12 max-w-4xl md:mb-16">
@@ -310,9 +295,9 @@ function RevealBlock({
 function SkillCluster({ group, index }: { group: (typeof skillGroups)[number]; index: number }) {
   return (
     <RevealBlock delay={index * 0.08}>
-      <article className="group relative min-h-72 overflow-hidden rounded-lg border border-white/10 bg-white/[0.045] p-6 backdrop-blur-xl transition duration-700 hover:-translate-y-1 hover:border-sky-200/35 hover:bg-white/[0.075]">
+      <article className="group relative min-h-72 overflow-hidden rounded-lg border border-white/10 bg-white/[0.045] p-6 backdrop-blur-md transition duration-700 [contain:layout_paint_style] hover:-translate-y-1 hover:border-sky-200/35 hover:bg-white/[0.075]">
         <div className="pointer-events-none absolute inset-0 opacity-0 transition duration-700 group-hover:opacity-100">
-          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sky-300/12 blur-3xl" />
+          <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-sky-300/10 blur-2xl" />
           <div className="absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-transparent via-sky-200/65 to-transparent" />
         </div>
         <div className="relative z-10 mb-8 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.22em] text-white/36">
@@ -441,7 +426,7 @@ style={{ opacity: ambientOpacity, scale: ambientScale }}
           {about.beats.map((beat) => (
             <article
               key={beat.label}
-              className="rounded-lg border border-white/10 bg-white/[0.045] p-6 backdrop-blur-xl"
+              className="rounded-lg border border-white/10 bg-white/[0.045] p-6 backdrop-blur-md"
             >
               <div className="mb-5 flex items-center justify-between gap-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-100/55">
                 <span>{beat.label}</span>
@@ -491,7 +476,7 @@ export function ExperienceSection() {
       <div className="space-y-6">
         {experience.map((item) => (
           <RevealBlock key={`${item.company}-${item.role}`}>
-            <article className="relative overflow-hidden rounded-lg border border-white/10 bg-white/[0.045] p-6 backdrop-blur-xl md:p-8">
+            <article className="relative overflow-hidden rounded-lg border border-white/10 bg-white/[0.045] p-6 backdrop-blur-md [contain:layout_paint_style] md:p-8">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(125,211,252,0.08),transparent_32rem)]" />
               <div className="relative z-10 mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-start">
                 <div>
@@ -532,7 +517,7 @@ export function WritingSection() {
               href={item.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative block min-h-72 overflow-hidden rounded-lg border border-white/10 bg-white/[0.045] p-6 backdrop-blur-xl transition duration-700 hover:-translate-y-1 hover:border-sky-200/35 hover:bg-white/[0.075]"
+              className="group relative block min-h-72 overflow-hidden rounded-lg border border-white/10 bg-white/[0.045] p-6 backdrop-blur-md transition duration-700 [contain:layout_paint_style] hover:-translate-y-1 hover:border-sky-200/35 hover:bg-white/[0.075]"
             >
               <div className="absolute inset-x-6 top-0 h-px origin-left scale-x-0 bg-gradient-to-r from-sky-200 to-transparent transition duration-700 group-hover:scale-x-100" />
               <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-sky-100/55">
@@ -558,7 +543,7 @@ export function EducationSection() {
         {education.map((item, index) => (
           <RevealBlock key={item.title} delay={index * 0.08}>
             <article
-              className={`relative overflow-hidden rounded-lg border p-6 backdrop-blur-xl md:p-8 ${
+              className={`relative overflow-hidden rounded-lg border p-6 backdrop-blur-md [contain:layout_paint_style] md:p-8 ${
                 item.featured
                   ? "border-sky-200/28 bg-sky-200/[0.07] shadow-glow"
                   : "border-white/10 bg-white/[0.045]"

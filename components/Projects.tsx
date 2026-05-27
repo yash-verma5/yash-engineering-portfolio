@@ -1,6 +1,6 @@
 "use client";
 
-import { MouseEvent, useEffect, useRef, useState } from "react";
+import { PointerEvent, useEffect, useRef, useState } from "react";
 import { motion, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
 import { projects } from "@/lib/content";
 
@@ -19,40 +19,73 @@ function ProjectCard({
   const rotateY = useMotionValue(0);
   const springX = useSpring(rotateX, { stiffness: 220, damping: 24 });
   const springY = useSpring(rotateY, { stiffness: 220, damping: 24 });
+  const boundsRef = useRef<DOMRect | null>(null);
+  const pointerRef = useRef({ x: 0, y: 0 });
+  const tiltRafRef = useRef<number | null>(null);
 
-  const handleMouseMove = (event: MouseEvent<HTMLElement>) => {
-    if (compact) return;
+  const updateTilt = () => {
+    tiltRafRef.current = null;
+    const rect = boundsRef.current;
+    if (!rect) return;
 
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
 
-    rotateX.set(((centerY - y) / centerY) * 5);
-    rotateY.set(((x - centerX) / centerX) * 6);
+    rotateX.set(((centerY - pointerRef.current.y) / centerY) * 4);
+    rotateY.set(((pointerRef.current.x - centerX) / centerX) * 5);
+  };
+
+  const handlePointerEnter = (event: PointerEvent<HTMLElement>) => {
+    if (compact) return;
+    boundsRef.current = event.currentTarget.getBoundingClientRect();
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
+    if (compact || !boundsRef.current) return;
+
+    pointerRef.current.x = event.clientX - boundsRef.current.left;
+    pointerRef.current.y = event.clientY - boundsRef.current.top;
+
+    if (tiltRafRef.current === null) {
+      tiltRafRef.current = window.requestAnimationFrame(updateTilt);
+    }
   };
 
   const resetTilt = () => {
+    if (tiltRafRef.current !== null) {
+      window.cancelAnimationFrame(tiltRafRef.current);
+      tiltRafRef.current = null;
+    }
+
+    boundsRef.current = null;
     rotateX.set(0);
     rotateY.set(0);
   };
 
+  useEffect(() => {
+    return () => {
+      if (tiltRafRef.current !== null) {
+        window.cancelAnimationFrame(tiltRafRef.current);
+      }
+    };
+  }, []);
+
   return (
     <motion.article
-      onMouseMove={handleMouseMove}
-      onMouseLeave={resetTilt}
+      onPointerEnter={handlePointerEnter}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={resetTilt}
       style={{
         rotateX: compact ? 0 : springX,
         rotateY: compact ? 0 : springY,
         transformStyle: "preserve-3d"
       }}
-      className={`project-card group relative overflow-hidden rounded-lg border border-white/12 bg-white/[0.055] shadow-glow backdrop-blur-xl transition duration-700 hover:-translate-y-1 hover:border-sky-200/36 hover:bg-white/[0.085] ${
+      className={`project-card group relative overflow-hidden rounded-lg border border-white/12 bg-white/[0.055] shadow-glow backdrop-blur-md transition duration-700 [contain:layout_paint_style] [will-change:transform] hover:-translate-y-1 hover:border-sky-200/36 hover:bg-white/[0.085] ${
         compact ? "min-h-96 p-6" : "h-[46vh] min-h-[24rem] w-[76vw] max-w-[56rem] shrink-0 p-7 md:p-8"
       }`}
     >
       <div className="absolute inset-0 opacity-0 transition duration-700 group-hover:opacity-100">
-        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-300/14 blur-3xl" />
+        <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-sky-300/12 blur-2xl" />
         <div className="absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-sky-200/0 via-sky-200/70 to-sky-200/0" />
         <div className="absolute inset-x-8 top-8 h-px origin-left scale-x-0 bg-gradient-to-r from-sky-200/70 to-transparent transition duration-700 group-hover:scale-x-100" />
       </div>

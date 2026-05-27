@@ -15,6 +15,7 @@ export default function Navbar() {
   const secretTapTimerRef = useRef<number | null>(null);
   const scrolledRef = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
+  const activeSectionRef = useRef("intro");
 
   const activeIndex = Math.max(
     navItems.findIndex((item) => item.id === activeSection),
@@ -29,7 +30,7 @@ export default function Navbar() {
   };
 
   useEffect(() => {
-    const updateNavbarState = () => {
+    const updateScrolledState = () => {
       const shouldBeScrolled = scrolledRef.current
         ? window.scrollY > 24
         : window.scrollY > 72;
@@ -38,16 +39,6 @@ export default function Navbar() {
         scrolledRef.current = shouldBeScrolled;
         setScrolled(shouldBeScrolled);
       }
-
-      const active = navItems.reduce((current, item) => {
-        const section = document.getElementById(item.id);
-        if (!section) return current;
-
-        const top = section.getBoundingClientRect().top;
-        return top <= window.innerHeight * 0.42 ? item.id : current;
-      }, "intro");
-
-      setActiveSection(active);
     };
 
     const handleScroll = () => {
@@ -55,14 +46,13 @@ export default function Navbar() {
 
       scrollRafRef.current = window.requestAnimationFrame(() => {
         scrollRafRef.current = null;
-        updateNavbarState();
+        updateScrolledState();
       });
     };
 
-    updateNavbarState();
+    updateScrolledState();
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll);
 
     return () => {
       if (scrollRafRef.current !== null) {
@@ -70,13 +60,48 @@ export default function Navbar() {
       }
 
       window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
     };
+  }, []);
+
+  useEffect(() => {
+    const sections = navItems
+      .map((item) => document.getElementById(item.id))
+      .filter((section): section is HTMLElement => Boolean(section));
+
+    if (!sections.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        if (!visibleEntry) return;
+
+        const nextActive = visibleEntry.target.id;
+        if (nextActive !== activeSectionRef.current) {
+          activeSectionRef.current = nextActive;
+          setActiveSection(nextActive);
+        }
+      },
+      {
+        rootMargin: "-32% 0px -50% 0px",
+        threshold: [0.08, 0.2, 0.36, 0.52]
+      }
+    );
+
+    sections.forEach((section) => observer.observe(section));
+
+    return () => observer.disconnect();
   }, []);
 
   const scrollTo = (id: string) => {
     const section = document.getElementById(id);
     if (section) section.scrollIntoView({ behavior: "smooth" });
+    if (id !== activeSectionRef.current) {
+      activeSectionRef.current = id;
+      setActiveSection(id);
+    }
     setMobileOpen(false);
   };
 
@@ -135,7 +160,7 @@ export default function Navbar() {
     >
       <motion.div
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 -z-10 h-full border-b border-white/[0.04] bg-ink/30 shadow-lg shadow-black/10 backdrop-blur-xl"
+        className="absolute inset-x-0 top-0 -z-10 h-full border-b border-white/[0.04] bg-ink/30 shadow-lg shadow-black/10 backdrop-blur-md"
         animate={{ opacity: scrolled ? 1 : 0 }}
         transition={navTransition}
       />
@@ -202,7 +227,7 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="interactive group inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.035] text-white/80 shadow-lg shadow-black/10 backdrop-blur-md transition hover:border-sky-200/30 hover:bg-sky-200/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-200/70 xl:hidden"
+          className="interactive group inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.035] text-white/80 shadow-lg shadow-black/10 backdrop-blur-sm transition hover:border-sky-200/30 hover:bg-sky-200/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-200/70 xl:hidden"
           aria-label={mobileOpen ? "Close mobile navigation" : "Open mobile navigation"}
           aria-expanded={mobileOpen}
           aria-controls="mobile-nav-panel"
@@ -234,7 +259,7 @@ export default function Navbar() {
             <motion.button
               type="button"
               aria-label="Close mobile navigation"
-              className="pointer-events-auto fixed inset-0 z-[55] cursor-default bg-[#02050b]/45 backdrop-blur-[3px] xl:hidden"
+              className="pointer-events-auto fixed inset-0 z-[55] cursor-default bg-[#02050b]/55 xl:hidden"
               onClick={() => setMobileOpen(false)}
               initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -245,7 +270,7 @@ export default function Navbar() {
             <motion.nav
               id="mobile-nav-panel"
               aria-label="Mobile section navigation"
-              className="pointer-events-auto fixed inset-x-4 top-[4.75rem] z-[60] mx-auto max-w-md overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#050910]/88 shadow-2xl shadow-black/35 backdrop-blur-2xl xl:hidden"
+              className="pointer-events-auto fixed inset-x-4 top-[4.75rem] z-[60] mx-auto max-w-md overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#050910]/92 shadow-2xl shadow-black/35 backdrop-blur-md xl:hidden"
               initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -14, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.98 }}
@@ -253,7 +278,7 @@ export default function Navbar() {
             >
               <div className="relative overflow-hidden p-4">
                 <div
-                  className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-sky-300/10 blur-3xl"
+                  className="pointer-events-none absolute -right-14 -top-16 h-36 w-36 rounded-full bg-sky-300/10 blur-2xl"
                   aria-hidden="true"
                 />
                 <div className="relative flex items-center justify-between gap-4">
